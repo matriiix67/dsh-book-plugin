@@ -1,0 +1,61 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: 校验标签与版本号一致
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::标签 $GITHUB_REF_NAME 与 package.json 版本 $version 不一致"
+            exit 1
+          fi
+
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+
+      - name: 确认已提交的 dist 与源码一致
+        run: git diff --exit-code -- dist
+
+      - run: npm run typecheck
+      - run: npm test
+
+      - name: 打包
+        run: |
+          npm pack
+          mv local-dsh-bookshelf-*.tgz "dsh-book-plugin-${GITHUB_REF_NAME#v}.tgz"
+
+      - name: 发布 Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > notes.md <<EOF
+          ## 安装
+
+          在 DeepSeek Harness 中打开「插件 → 添加插件」，填入：
+
+          \`\`\`
+          github:${GITHUB_REPOSITORY}#${GITHUB_REF_NAME}
+          \`\`\`
+
+          无法访问 GitHub 时，可以先下载下方的 \`dsh-book-plugin-${GITHUB_REF_NAME#v}.tgz\`，再在同一对话框中填入它的绝对路径。
+
+          已安装旧版本时，先在插件页卸载「书架」，再按上面的方式安装新版本；书库与笔记保存在本机数据目录中，不受影响。
+          EOF
+          gh release create "$GITHUB_REF_NAME" dsh-book-plugin-*.tgz \
+            --title "$GITHUB_REF_NAME" --notes-file notes.md --generate-notes

@@ -50,18 +50,23 @@
 
 ## 安装
 
-适用于 **DeepSeek Harness 0.2.1-rc.5** 桌面版。
+适用于 **DeepSeek Harness 0.2.1-rc.5** 及之后的 0.2 版本。
 
-1. 克隆仓库：
+1. 在 DSH 中打开「插件 → 添加插件」，填入：
 
-   ```bash
-   git clone https://github.com/matriiix67/dsh-book-plugin.git
+   ```
+   github:matriiix67/dsh-book-plugin#v0.1.0
    ```
 
-2. 在 DSH 中打开「插件 → 添加插件」，输入克隆目录的绝对路径，安装后启用「书架」。
-3. 侧栏出现「书架」入口即安装完成。
+   `#` 后面是版本号，最新版本见 [Releases](https://github.com/matriiix67/dsh-book-plugin/releases)。
 
-**更新**：在克隆目录中执行 `git pull`，然后重启 DSH。
+2. 安装完成后点击「立即启用」，侧栏出现「书架」入口即可使用。
+
+**无法访问 GitHub**：从 [Releases](https://github.com/matriiix67/dsh-book-plugin/releases) 下载 `dsh-book-plugin-<版本号>.tgz`，在「添加插件」中填入该文件的绝对路径。
+
+**从源码目录安装**：`git clone` 本仓库后，在「添加插件」中填入克隆目录的绝对路径。仓库已包含构建产物，无需另装依赖。
+
+**更新**：在插件页卸载「书架」，再按上面的方式安装新版本，书库与笔记不受影响。从源码目录安装的，执行 `git pull` 后重启 DSH 即可。
 
 ## 使用
 

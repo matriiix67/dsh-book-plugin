@@ -4,6 +4,25 @@
   "private": true,
   "description": "本地书架、沉浸阅读与带原文引用的 DSH 书架助手",
   "license": "MIT",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "deepseek-harness-plugin",
+    "ebook",
+    "epub",
+    "reader",
+    "dictionary",
+    "translation"
+  ],
+  "homepage": "https://github.com/matriiix67/dsh-book-plugin#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/matriiix67/dsh-book-plugin.git"
+  },
+  "bugs": {
+    "url": "https://github.com/matriiix67/dsh-book-plugin/issues"
+  },
   "type": "module",
   "exports": {
     ".": "./dist/host.js",
@@ -14,6 +33,9 @@
   },
   "files": [
     "dist",
+    "!dist/*.map",
+    "!dist/library.js",
+    "!dist/dictionary.js",
     "locale",
     "assets",
     "cordis.patch.yml",
@@ -37,28 +59,35 @@
       ]
     }
   },
-  "dependencies": {
+  "engines": {
+    "dsh": ">=0.2.1-rc.5 <0.3.0-0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-tools": ">=0.2.1-rc.5 <0.3.0-0",
+    "@deepseek-ai/dsh-typert-protocol": ">=0.2.1-rc.5 <0.3.0-0",
+    "@deepseek-ai/schemastery": "^3.18.5",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
     "@deepseek-ai/dsh-tools": "0.2.1-rc.5",
     "@deepseek-ai/dsh-typert-protocol": "0.2.1-rc.5",
     "@deepseek-ai/schemastery": "3.18.5",
+    "@types/node": "24.10.0",
+    "@types/react": "19.2.2",
+    "@types/sanitize-html": "2.16.0",
     "dompurify": "3.4.17",
     "domutils": "3.2.2",
+    "esbuild": "0.27.0",
     "fast-xml-parser": "5.11.2",
     "fflate": "0.8.3",
     "htmlparser2": "10.0.0",
     "marked": "17.0.1",
-    "sanitize-html": "2.18.1",
-    "zod": "4.6.7"
-  },
-  "devDependencies": {
-    "@types/node": "24.10.0",
-    "@types/react": "19.2.2",
-    "@types/sanitize-html": "2.16.0",
-    "esbuild": "0.27.0",
     "prettier": "3.6.2",
     "react": "19.2.0",
+    "sanitize-html": "2.18.1",
     "tsx": "4.20.6",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "zod": "4.6.7"
   },
   "overrides": {
     "zod": "4.6.7"
