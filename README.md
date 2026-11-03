@@ -22,6 +22,7 @@
   <img alt="DSH 0.2.1-rc.5" src="https://img.shields.io/badge/DSH-0.2.1--rc.5-30584e?style=flat-square">
   <img alt="格式 EPUB · Markdown · TXT" src="https://img.shields.io/badge/%E6%A0%BC%E5%BC%8F-EPUB%20%C2%B7%20Markdown%20%C2%B7%20TXT-30584e?style=flat-square">
   <a href="https://github.com/matriiix67/dsh-book-plugin/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/matriiix67/dsh-book-plugin?style=flat-square&color=30584e"></a>
+  <a href="./LICENSE"><img alt="License MIT" src="https://img.shields.io/badge/License-MIT-30584e?style=flat-square"></a>
 </p>
 
 <p align="center">
@@ -116,3 +117,7 @@
 ## 喜欢它？
 
 如果书架让你在 DSH 里读得更顺手，欢迎点亮 ⭐，也欢迎在 [Issues](https://github.com/matriiix67/dsh-book-plugin/issues) 反馈问题和建议。
+
+## 许可证
+
+[MIT](./LICENSE)

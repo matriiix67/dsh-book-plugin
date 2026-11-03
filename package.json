@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "本地书架、沉浸阅读与带原文引用的 DSH 书架助手",
+  "license": "MIT",
   "type": "module",
   "exports": {
     ".": "./dist/host.js",
