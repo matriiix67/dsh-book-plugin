@@ -610,6 +610,37 @@ function isTerm(text: string) {
     /^[\p{L}\p{M}][\p{L}\p{M}'’-]*(?: [\p{L}\p{M}'’-]+){0,3}$/u.test(term)
   );
 }
+// 所有阅读器共用一个高亮集合，各自增删本章的选区。
+const highlights =
+  typeof Highlight === "undefined" ? null : new Highlight();
+// 在段落中定位摘录，忽略空白差异；跨段选区只标出落在本段的部分。
+function quoteRange(root: HTMLElement, quote: string) {
+  const chars: [Text, number][] = [];
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const data = (node as Text).data;
+    for (let i = 0; i < data.length; i++)
+      if (!/\s/.test(data[i])) chars.push([node as Text, i]);
+  }
+  const text = chars.map(([node, i]) => node.data[i]).join("");
+  const q = quote.replace(/\s+/g, "");
+  const range = document.createRange();
+  let start = q ? text.indexOf(q) : -1,
+    end = start + q.length;
+  // 跨段选区：摘录开头落在本段末尾，或摘录结尾落在本段开头。
+  for (let k = Math.min(q.length, text.length); start < 0 && k >= 4; k--) {
+    if (text.endsWith(q.slice(0, k)))
+      [start, end] = [text.length - k, text.length];
+    else if (text.startsWith(q.slice(-k))) [start, end] = [0, k];
+  }
+  if (start < 0) {
+    range.selectNodeContents(root);
+    return range;
+  }
+  range.setStart(chars[start][0], chars[start][1]);
+  range.setEnd(chars[end - 1][0], chars[end - 1][1] + 1);
+  return range;
+}
 const megabytes = (n: number) => (n / 1048576).toFixed(1) + " MB";
 function useAssist(ctx: any) {
   const [state, setState] = useState({
@@ -1082,6 +1113,24 @@ function Reader({
     void refreshNotes();
   }, [refreshNotes]);
   useEffect(() => {
+    const container = scroll.current;
+    if (!highlights || !container || loading || !chapter) return;
+    CSS.highlights.set("bs-highlight", highlights);
+    const ranges = notes.flatMap((n) => {
+      const root =
+        n.kind === "highlight" &&
+        n.revision === book.revision &&
+        n.chapter === chapter.id &&
+        container.querySelector<HTMLElement>(
+          `[data-block="${CSS.escape(n.block)}"] > div`,
+        );
+      const range = root && quoteRange(root, n.quote);
+      return range ? [range] : [];
+    });
+    ranges.forEach((r) => highlights.add(r));
+    return () => ranges.forEach((r) => highlights.delete(r));
+  }, [notes, chapter, loading, book.revision]);
+  useEffect(() => {
     if (target.chapter) setChapterId(target.chapter);
   }, [target]);
   useEffect(() => {
@@ -1203,6 +1252,7 @@ function Reader({
       note: kind === "highlight" ? text : "",
       kind,
     });
+    window.getSelection()?.removeAllRanges();
     setSelection(null);
     setNoteDialog(false);
     setNote("");
@@ -1464,11 +1514,12 @@ function Reader({
                         "bs-block" +
                         (notes.some(
                           (n) =>
+                            n.kind === "bookmark" &&
                             n.revision === book.revision &&
                             n.chapter === chapterId &&
                             n.block === block.id,
                         )
-                          ? " bs-highlight"
+                          ? " bs-bookmarked"
                           : "")
                       }
                     >

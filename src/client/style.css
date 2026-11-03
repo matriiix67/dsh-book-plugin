@@ -709,9 +709,11 @@
   padding-left: 20px;
   color: var(--bs-muted);
 }
-.bs-highlight {
-  box-shadow: inset 3px 0 var(--bs-accent);
-  background: color-mix(in srgb, var(--bs-accent) 8%, transparent);
+.bs-page ::highlight(bs-highlight) {
+  background-color: rgb(232 190 72 / 0.3);
+}
+.bs-paper .bs-page ::highlight(bs-highlight) {
+  background-color: rgb(244 196 48 / 0.45);
 }
 .bs-app .bs-bookmark {
   position: absolute;
@@ -725,6 +727,10 @@
 .bs-block:hover .bs-bookmark,
 .bs-bookmark:focus-visible {
   opacity: 1;
+}
+.bs-app .bs-bookmarked .bs-bookmark {
+  opacity: 1;
+  color: var(--bs-accent);
 }
 .bs-flash {
   animation: bs-flash 2.4s ease-out;
