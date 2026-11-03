@@ -55,7 +55,7 @@
 1. 在 DSH 中打开「插件 → 添加插件」，填入：
 
    ```
-   github:matriiix67/dsh-book-plugin#v0.1.0
+   github:matriiix67/dsh-book-plugin#v0.1.1
    ```
 
    `#` 后面是版本号，最新版本见 [Releases](https://github.com/matriiix67/dsh-book-plugin/releases)。
