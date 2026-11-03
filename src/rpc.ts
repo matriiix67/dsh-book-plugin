@@ -25,6 +25,34 @@ export const remoteInfo = createTypertRemoteInfo(
           create: () => z.json(),
         },
       },
+      "bookshelf/stream": {
+        service: "bookshelf",
+        description: "阅读辅助：翻译与语境释义，流式返回模型输出",
+        mode: "stream",
+        invocation: { kind: "direct" },
+        parameters: [
+          {
+            name: "input",
+            source: "json",
+            codec: {
+              mode: "strict",
+              typeSymbol: "bookshelf#assist-request",
+              create: () =>
+                z.object({
+                  kind: z.enum(["translate", "explain"]),
+                  text: z.string(),
+                  context: z.string().optional(),
+                }),
+            },
+          },
+        ],
+        cancellation: { parameter: "signal" },
+        result: {
+          mode: "strict",
+          typeSymbol: "bookshelf#assist-chunk",
+          create: () => z.json(),
+        },
+      },
     },
   } as any,
   z,

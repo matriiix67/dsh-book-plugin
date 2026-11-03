@@ -24,6 +24,23 @@ await Promise.all([
     sourcemap: true,
   }),
   build({
+    entryPoints: ["src/host/dictionary.ts"],
+    outfile: "dist/dictionary.js",
+    bundle: true,
+    format: "esm",
+    platform: "node",
+    target: "node22",
+  }),
+  build({
+    entryPoints: ["src/host/dict-worker.ts"],
+    outfile: "dist/dict-worker.js",
+    bundle: true,
+    format: "esm",
+    platform: "node",
+    target: "node22",
+    sourcemap: true,
+  }),
+  build({
     entryPoints: ["src/host/parse-worker.ts"],
     outfile: "dist/parse-worker.js",
     bundle: true,

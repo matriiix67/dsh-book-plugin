@@ -25,6 +25,33 @@ var remoteInfo = createTypertRemoteInfo(
           typeSymbol: "bookshelf#result",
           create: () => z.json()
         }
+      },
+      "bookshelf/stream": {
+        service: "bookshelf",
+        description: "\u9605\u8BFB\u8F85\u52A9\uFF1A\u7FFB\u8BD1\u4E0E\u8BED\u5883\u91CA\u4E49\uFF0C\u6D41\u5F0F\u8FD4\u56DE\u6A21\u578B\u8F93\u51FA",
+        mode: "stream",
+        invocation: { kind: "direct" },
+        parameters: [
+          {
+            name: "input",
+            source: "json",
+            codec: {
+              mode: "strict",
+              typeSymbol: "bookshelf#assist-request",
+              create: () => z.object({
+                kind: z.enum(["translate", "explain"]),
+                text: z.string(),
+                context: z.string().optional()
+              })
+            }
+          }
+        ],
+        cancellation: { parameter: "signal" },
+        result: {
+          mode: "strict",
+          typeSymbol: "bookshelf#assist-chunk",
+          create: () => z.json()
+        }
       }
     }
   },

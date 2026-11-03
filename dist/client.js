@@ -202,6 +202,33 @@ var remoteInfo = createTypertRemoteInfo(
           typeSymbol: "bookshelf#result",
           create: () => import_zod.z.json()
         }
+      },
+      "bookshelf/stream": {
+        service: "bookshelf",
+        description: "\u9605\u8BFB\u8F85\u52A9\uFF1A\u7FFB\u8BD1\u4E0E\u8BED\u5883\u91CA\u4E49\uFF0C\u6D41\u5F0F\u8FD4\u56DE\u6A21\u578B\u8F93\u51FA",
+        mode: "stream",
+        invocation: { kind: "direct" },
+        parameters: [
+          {
+            name: "input",
+            source: "json",
+            codec: {
+              mode: "strict",
+              typeSymbol: "bookshelf#assist-request",
+              create: () => import_zod.z.object({
+                kind: import_zod.z.enum(["translate", "explain"]),
+                text: import_zod.z.string(),
+                context: import_zod.z.string().optional()
+              })
+            }
+          }
+        ],
+        cancellation: { parameter: "signal" },
+        result: {
+          mode: "strict",
+          typeSymbol: "bookshelf#assist-chunk",
+          create: () => import_zod.z.json()
+        }
       }
     }
   },
@@ -209,7 +236,7 @@ var remoteInfo = createTypertRemoteInfo(
 );
 
 // src/client/style.css
-var style_default = '.bs-app {\n  --bs-bg: var(--dsw-alias-bg-base, #151516);\n  --bs-panel: var(--dsw-alias-bg-layer-1, #202122);\n  --bs-text: var(--dsw-alias-label-primary, #ececea);\n  --bs-muted: var(--dsw-alias-label-tertiary, #969a97);\n  --bs-line: var(--dsw-alias-border-l1, #343638);\n  --bs-accent: var(--dsw-alias-brand-primary, #80ab99);\n  height: 100%;\n  display: flex;\n  flex-direction: column;\n  background: var(--bs-bg);\n  color: var(--bs-text);\n  font-family: inherit;\n  font-size: 13px;\n  overflow: hidden;\n  --assistant-width: 365px;\n}\n.bs-app *,\n.bs-modal * {\n  box-sizing: border-box;\n}\n.bs-app button,\n.bs-app input,\n.bs-app textarea,\n.bs-app select,\n.bs-modal button,\n.bs-modal input,\n.bs-modal textarea,\n.bs-modal select {\n  font: inherit;\n  color: inherit;\n}\n.bs-app button,\n.bs-modal button {\n  border: 1px solid transparent;\n  border-radius: 7px;\n  background: transparent;\n  padding: 7px 10px;\n  cursor: pointer;\n  transition:\n    background 0.15s,\n    color 0.15s;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 7px;\n}\n.bs-app button:hover,\n.bs-modal button:hover {\n  background: var(--bs-panel, #303331);\n}\n.bs-app button:disabled,\n.bs-modal button:disabled {\n  opacity: 0.45;\n  cursor: default;\n}\n.bs-app :focus-visible,\n.bs-modal :focus-visible {\n  outline: 2px solid var(--bs-accent, #80ab99);\n  outline-offset: 3px;\n}\n.bs-app .bs-primary,\n.bs-modal .bs-primary {\n  background: var(--bs-accent, #80ab99);\n  color: var(--dsw-alias-label-primary-inverted, #10271f);\n  border-color: transparent;\n  font-weight: 600;\n}\n.bs-app .bs-primary:hover,\n.bs-modal .bs-primary:hover {\n  filter: brightness(1.08);\n  background: var(--bs-accent, #80ab99);\n}\n.bs-top {\n  min-height: 52px;\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 0 24px;\n  padding-left: max(24px, var(--dsh-frame-leading-clearance, 0px));\n  border-bottom: 1px solid var(--bs-line);\n  flex-shrink: 0;\n}\n.bs-top > span,\n.bs-assistant > header > span {\n  display: flex;\n  align-items: center;\n  gap: 9px;\n  font-weight: 600;\n}\n.bs-top > button {\n  color: var(--bs-muted);\n}\n.bs-workspace {\n  display: flex;\n  flex: 1;\n  min-height: 0;\n  min-width: 0;\n}\n.bs-library {\n  flex: 1;\n  min-width: 300px;\n  padding: 42px clamp(22px, 4vw, 58px);\n  overflow: auto;\n  scrollbar-gutter: stable;\n}\n.bs-eyebrow {\n  font-size: 10px;\n  letter-spacing: 2.3px;\n  color: var(--bs-muted);\n  margin: 0 0 10px;\n}\n.bs-library-heading {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 20px;\n  margin-bottom: 30px;\n  flex-wrap: wrap;\n}\n.bs-library h1 {\n  font-size: 29px;\n  font-weight: 550;\n  letter-spacing: 1px;\n  margin: 0 0 12px;\n}\n.bs-library h1 small {\n  font: 12px system-ui;\n  vertical-align: middle;\n  letter-spacing: 0;\n  border: 1px solid var(--bs-line);\n  border-radius: 4px;\n  padding: 2px 6px;\n  color: var(--bs-muted);\n  margin-left: 7px;\n}\n.bs-muted {\n  color: var(--bs-muted);\n  line-height: 1.6;\n}\n.bs-actions {\n  display: flex;\n  gap: 8px;\n}\n.bs-actions > button:first-child,\n.bs-search-row > button {\n  border-color: var(--bs-line);\n}\n.bs-filter-row {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  border-bottom: 1px solid var(--bs-line);\n  padding-bottom: 12px;\n  gap: 8px;\n}\n.bs-tabs {\n  display: flex;\n  gap: 4px;\n}\n.bs-tabs button {\n  color: var(--bs-muted);\n  white-space: nowrap;\n}\n.bs-tabs button[aria-pressed="true"] {\n  background: var(--bs-panel);\n  color: var(--bs-text);\n}\n.bs-app select {\n  border: 1px solid var(--bs-line);\n  border-radius: 6px;\n  padding: 6px;\n  background: var(--bs-bg);\n  font-size: 12px;\n  max-width: 120px;\n}\n.bs-search-row {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  margin: 18px 0 27px;\n}\n.bs-search {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  flex: 1;\n  min-width: 80px;\n  background: var(--bs-panel);\n  border: 1px solid var(--bs-line);\n  border-radius: 8px;\n  padding: 0 10px;\n}\n.bs-search > span {\n  font-size: 22px;\n  color: var(--bs-muted);\n}\n.bs-search input {\n  flex: 1;\n  min-width: 0;\n  background: transparent;\n  border: 0;\n  outline: 0;\n  padding: 9px 0;\n}\n.bs-grid {\n  display: grid;\n  grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));\n  column-gap: 25px;\n  row-gap: 34px;\n}\n.bs-card {\n  min-width: 0;\n  position: relative;\n  content-visibility: auto;\n  contain-intrinsic-size: auto 315px;\n}\n.bs-card .bs-card-open {\n  display: block;\n  padding: 0;\n  width: 100%;\n  text-align: left;\n  border-radius: 3px;\n}\n.bs-card .bs-card-open:hover {\n  background: transparent;\n}\n.bs-cover {\n  aspect-ratio: 1/1.44;\n  width: 100%;\n  position: relative;\n  overflow: hidden;\n  border-radius: 2px;\n  background: hsl(var(--book-hue) 20% 29%);\n  box-shadow: 2px 6px 15px #0003;\n  transition:\n    transform 0.2s,\n    box-shadow 0.2s;\n}\n.bs-card-open:hover .bs-cover {\n  transform: translateY(-4px);\n  box-shadow: 2px 10px 20px #0005;\n}\n.bs-cover:after {\n  content: "";\n  position: absolute;\n  inset: 0;\n  box-shadow:\n    inset 3px 0 5px #fff2,\n    inset -1px 0 2px #0003;\n  pointer-events: none;\n}\n.bs-cover img {\n  width: 100%;\n  height: 100%;\n  object-fit: cover;\n}\n.bs-cover-type {\n  height: 100%;\n  display: flex;\n  flex-direction: column;\n  padding: 21px 17px;\n  color: #f4ecda;\n  background: linear-gradient(\n    100deg,\n    #0002,\n    transparent 8%,\n    #ffffff05 90%,\n    #0002\n  );\n  position: relative;\n}\n.bs-cover-type:after {\n  content: "";\n  position: absolute;\n  inset: 11px;\n  border: 1px solid #ffffff25;\n  pointer-events: none;\n}\n.bs-cover-type small {\n  font-size: 8px;\n  letter-spacing: 1.5px;\n  opacity: 0.65;\n}\n.bs-cover-type strong {\n  font-family: Georgia, "Songti SC", serif;\n  font-size: clamp(20px, 2vw, 30px);\n  font-weight: 500;\n  line-height: 1.45;\n  margin: auto 0 17px;\n  display: -webkit-box;\n  -webkit-line-clamp: 4;\n  -webkit-box-orient: vertical;\n  overflow: hidden;\n}\n.bs-cover-type span {\n  font-size: 10px;\n  opacity: 0.65;\n}\n.bs-cover-type svg {\n  margin-top: auto;\n  opacity: 0.4;\n}\n.bs-card h3 {\n  font-size: 13px;\n  font-weight: 500;\n  line-height: 1.6;\n  margin: 11px 0 4px;\n  display: -webkit-box;\n  -webkit-line-clamp: 2;\n  -webkit-box-orient: vertical;\n  overflow: hidden;\n}\n.bs-card p {\n  margin: 0;\n  color: var(--bs-muted);\n  font-size: 11px;\n  line-height: 1.5;\n  white-space: nowrap;\n  text-overflow: ellipsis;\n  overflow: hidden;\n}\n.bs-card-meta {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  margin-top: 8px;\n  color: var(--bs-muted);\n  font-size: 10px;\n}\n.bs-card-meta > span {\n  border: 1px solid var(--bs-line);\n  border-radius: 3px;\n  padding: 2px 4px;\n}\n.bs-card-meta > button {\n  margin-left: auto;\n  font-size: 17px;\n  line-height: 10px;\n  padding: 2px 6px;\n}\n.bs-card progress {\n  height: 3px;\n  width: 100%;\n  accent-color: var(--bs-accent);\n  margin-top: 9px;\n  border: 0;\n}\n.bs-empty {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  text-align: center;\n  min-height: 360px;\n  padding: 40px 15px;\n  gap: 12px;\n}\n.bs-empty > svg {\n  color: var(--bs-accent);\n  opacity: 0.6;\n}\n.bs-empty h2 {\n  font-size: 23px;\n  font-weight: 500;\n  margin: 10px 0 0;\n}\n.bs-empty p {\n  color: var(--bs-muted);\n  line-height: 1.8;\n  margin: 0 0 12px;\n}\n.bs-empty small {\n  color: var(--bs-muted);\n  font-size: 11px;\n  margin-top: 14px;\n}\n.bs-file-input {\n  display: none;\n}\n.bs-assistant {\n  flex: 0 0 var(--assistant-width);\n  width: var(--assistant-width);\n  min-width: 0;\n  display: flex;\n  flex-direction: column;\n  background: var(--bs-bg);\n}\n.bs-assistant > header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 8px;\n  padding: 14px 16px;\n  border-bottom: 1px solid var(--bs-line);\n  min-height: 53px;\n}\n.bs-assistant > header button {\n  font-size: 11px;\n  color: var(--bs-muted);\n}\n.bs-assistant-scope {\n  font-size: 11px;\n  color: var(--bs-muted);\n  padding: 12px 18px;\n  border-bottom: 1px solid var(--bs-line);\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n}\n.bs-chat {\n  flex: 1;\n  min-height: 0;\n  overflow: auto;\n  padding: 15px 18px;\n}\n.bs-chat-empty {\n  margin: 65px 0 20px;\n  display: flex;\n  flex-direction: column;\n  align-items: flex-start;\n  gap: 10px;\n}\n.bs-chat-empty > svg {\n  color: var(--bs-accent);\n  margin-bottom: 10px;\n}\n.bs-chat-empty h3 {\n  font-size: 19px;\n  font-weight: 500;\n  margin: 0;\n  line-height: 1.6;\n}\n.bs-chat-empty p {\n  color: var(--bs-muted);\n  font-size: 12px;\n  line-height: 1.8;\n  margin-bottom: 20px;\n}\n.bs-chat-empty button {\n  font-size: 12px;\n  border: 1px solid var(--bs-line);\n  width: 100%;\n  justify-content: space-between;\n  text-align: left;\n  line-height: 1.6;\n}\n.bs-message {\n  margin: 10px 0 28px;\n  overflow-wrap: anywhere;\n}\n.bs-message > small {\n  color: var(--bs-muted);\n  font-size: 10px;\n  display: block;\n  margin-bottom: 8px;\n}\n.bs-message-text {\n  white-space: pre-wrap;\n  line-height: 1.9;\n}\n.bs-user .bs-message-text {\n  padding: 12px 14px;\n  border-radius: 10px;\n  background: var(--bs-panel);\n  font-size: 12px;\n}\n.bs-app .bs-citation {\n  display: inline;\n  padding: 1px 5px;\n  color: var(--bs-accent);\n  border: 1px solid var(--bs-line);\n  font-size: 12px;\n}\n.bs-composer {\n  border: 1px solid var(--bs-line);\n  border-radius: 12px;\n  background: var(--bs-panel);\n  margin: 12px 14px 18px;\n  padding: 12px;\n  flex-shrink: 0;\n}\n.bs-composer textarea {\n  resize: none;\n  width: 100%;\n  min-height: 66px;\n  max-height: 160px;\n  border: 0;\n  background: transparent;\n  outline: 0;\n  line-height: 1.6;\n}\n.bs-composer footer {\n  display: flex;\n  justify-content: space-between;\n  align-items: center;\n  gap: 6px;\n  margin-top: 8px;\n}\n.bs-composer small {\n  color: var(--bs-muted);\n  font-size: 10px;\n}\n.bs-resizer {\n  flex: 0 0 5px;\n  cursor: col-resize;\n  touch-action: none;\n  border-left: 1px solid var(--bs-line);\n  background: transparent;\n}\n.bs-resizer:hover {\n  background: var(--bs-accent);\n}\n.bs-notice {\n  padding: 10px 22px;\n  background: var(--bs-panel);\n  border-bottom: 1px solid var(--bs-line);\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  line-height: 1.6;\n  flex-shrink: 0;\n}\n.bs-import-progress {\n  padding: 10px;\n  background: var(--bs-panel);\n  display: flex;\n  gap: 15px;\n  align-items: center;\n  margin-bottom: 20px;\n  font-size: 12px;\n}\n.bs-import-progress progress {\n  width: 90px;\n  accent-color: var(--bs-accent);\n}\n.bs-import-result {\n  margin: 0 0 20px;\n  color: var(--bs-muted);\n  font-size: 11px;\n}\n.bs-import-result p {\n  overflow-wrap: anywhere;\n}\n.bs-results > button {\n  display: block;\n  width: 100%;\n  text-align: left;\n  border: 1px solid var(--bs-line);\n  margin-bottom: 10px;\n  padding: 15px;\n  line-height: 1.8;\n}\n.bs-results small {\n  color: var(--bs-muted);\n}\n.bs-results p {\n  margin: 8px 0;\n}\n.bs-results span {\n  color: var(--bs-accent);\n  font-size: 11px;\n}\n.bs-load-more {\n  display: block !important;\n  margin: 25px auto;\n}\n.bs-reader {\n  flex: 1;\n  min-width: 300px;\n  display: flex;\n  flex-direction: column;\n  min-height: 0;\n}\n.bs-reader-toolbar {\n  display: flex;\n  align-items: center;\n  gap: 5px;\n  padding: 10px 15px;\n  border-bottom: 1px solid var(--bs-line);\n  flex-shrink: 0;\n}\n.bs-reader-toolbar > span {\n  flex: 1;\n  overflow: hidden;\n  white-space: nowrap;\n  text-overflow: ellipsis;\n  text-align: center;\n  font-size: 12px;\n  color: var(--bs-muted);\n  padding: 0 8px;\n}\n.bs-reader-body {\n  flex: 1;\n  min-height: 0;\n  display: flex;\n}\n.bs-toc {\n  flex: 0 0 158px;\n  width: 158px;\n  border-right: 1px solid var(--bs-line);\n  padding: 12px 9px;\n  overflow: auto;\n}\n.bs-toc > .bs-tabs {\n  position: sticky;\n  top: -12px;\n  background: var(--bs-bg);\n  padding: 5px 0 10px;\n}\n.bs-toc > button {\n  display: flex;\n  width: 100%;\n  justify-content: flex-start;\n  text-align: left;\n  font-size: 11px;\n  line-height: 1.8;\n  margin: 3px 0;\n  gap: 8px;\n}\n.bs-toc button small {\n  opacity: 0.5;\n  font-size: 10px;\n}\n.bs-toc .bs-selected {\n  background: var(--bs-panel);\n  color: var(--bs-accent);\n}\n.bs-page {\n  flex: 1;\n  min-width: 0;\n  overflow: auto;\n  padding: 35px clamp(25px, 4vw, 70px) 70px;\n  scrollbar-gutter: stable;\n  line-height: 1.95;\n  font-family: Georgia, "Songti SC", "Noto Serif CJK SC", serif;\n}\n.bs-page-heading small {\n  font: 11px system-ui;\n  color: var(--bs-muted);\n}\n.bs-page-heading h1 {\n  font-size: 1.6em;\n  line-height: 1.5;\n  font-weight: 500;\n  margin: 12px 0 35px;\n}\n.bs-block {\n  position: relative;\n  border-radius: 3px;\n  scroll-margin-top: 30px;\n}\n.bs-block p {\n  margin: 0 0 1.1em;\n}\n.bs-block img {\n  max-width: 100%;\n  height: auto;\n  display: block;\n  margin: auto;\n}\n.bs-block pre {\n  overflow: auto;\n  font-size: 0.8em;\n  background: var(--bs-panel);\n  padding: 14px;\n}\n.bs-block table {\n  border-collapse: collapse;\n  font-size: 0.8em;\n  display: block;\n  overflow: auto;\n}\n.bs-block td,\n.bs-block th {\n  border: 1px solid var(--bs-line);\n  padding: 6px;\n}\n.bs-block h1,\n.bs-block h2,\n.bs-block h3 {\n  font-size: 1.25em;\n  font-weight: 600;\n  line-height: 1.6;\n}\n.bs-block blockquote {\n  border-left: 2px solid var(--bs-accent);\n  margin: 1em 0;\n  padding-left: 20px;\n  color: var(--bs-muted);\n}\n.bs-highlight {\n  box-shadow: inset 3px 0 var(--bs-accent);\n  background: color-mix(in srgb, var(--bs-accent) 8%, transparent);\n}\n.bs-app .bs-bookmark {\n  position: absolute;\n  left: -25px;\n  top: 3px;\n  font: 14px system-ui;\n  padding: 2px 4px;\n  opacity: 0;\n  color: var(--bs-muted);\n}\n.bs-block:hover .bs-bookmark,\n.bs-bookmark:focus-visible {\n  opacity: 1;\n}\n.bs-flash {\n  animation: bs-flash 2.4s ease-out;\n}\n.bs-chapter-nav {\n  display: flex;\n  justify-content: space-between;\n  border-top: 1px solid var(--bs-line);\n  padding-top: 20px;\n  margin-top: 40px;\n  font: 12px system-ui;\n}\n.bs-paper .bs-page {\n  background: #f1eadb;\n  color: #39392f;\n}\n.bs-paper .bs-page .bs-muted,\n.bs-paper .bs-page-heading small {\n  color: #747464;\n}\n.bs-note {\n  border-bottom: 1px solid var(--bs-line);\n  padding: 10px 0;\n  font-size: 11px;\n}\n.bs-note > button {\n  text-align: left;\n  display: -webkit-box;\n  -webkit-line-clamp: 4;\n  -webkit-box-orient: vertical;\n  overflow: hidden;\n  line-height: 1.8;\n  padding: 0;\n}\n.bs-note p {\n  line-height: 1.8;\n  color: var(--bs-muted);\n  white-space: pre-wrap;\n}\n.bs-note > div button {\n  font-size: 10px;\n  color: var(--bs-muted);\n  padding: 4px;\n}\n.bs-modal {\n  --bs-bg: var(--dsw-alias-bg-base, #202122);\n  --bs-panel: var(--dsw-alias-bg-layer-1, #303331);\n  --bs-text: var(--dsw-alias-label-primary, #eeefeb);\n  --bs-muted: var(--dsw-alias-label-tertiary, #999d99);\n  --bs-line: var(--dsw-alias-border-l1, #424441);\n  --bs-accent: var(--dsw-alias-brand-primary, #80ab99);\n  background: var(--bs-bg);\n  color: var(--bs-text);\n  border: 1px solid var(--bs-line);\n  border-radius: 14px;\n  max-width: min(480px, calc(100vw - 36px));\n  width: 480px;\n  max-height: 85vh;\n  padding: 22px;\n  box-shadow: 0 18px 80px #0006;\n  font: 13px system-ui;\n  overflow: auto;\n}\n.bs-modal::backdrop {\n  background: #0006;\n  backdrop-filter: blur(4px);\n}\n.bs-modal header {\n  display: flex;\n  justify-content: space-between;\n  align-items: center;\n  gap: 10px;\n  margin-bottom: 18px;\n}\n.bs-modal h3 {\n  margin: 0;\n  font-size: 18px;\n  font-weight: 550;\n}\n.bs-modal label {\n  display: flex;\n  flex-direction: column;\n  gap: 7px;\n  margin: 15px 0;\n  color: var(--bs-muted);\n  font-size: 12px;\n}\n.bs-modal input,\n.bs-modal textarea,\n.bs-modal select {\n  width: 100%;\n  padding: 10px;\n  background: var(--bs-panel);\n  border: 1px solid var(--bs-line);\n  border-radius: 7px;\n  outline: 0;\n  color: var(--bs-text);\n}\n.bs-modal textarea {\n  min-height: 130px;\n  resize: vertical;\n}\n.bs-modal footer {\n  display: flex;\n  justify-content: flex-end;\n  gap: 8px;\n  margin-top: 22px;\n}\n.bs-modal blockquote {\n  border-left: 2px solid var(--bs-accent);\n  margin: 0 0 16px;\n  padding: 8px 14px;\n  max-height: 160px;\n  overflow: auto;\n  line-height: 1.8;\n  color: var(--bs-muted);\n}\n.bs-source,\n.bs-roots p {\n  font-size: 11px;\n  overflow-wrap: anywhere;\n  line-height: 1.7;\n}\n.bs-error {\n  padding: 12px;\n  border: 1px solid var(--bs-line);\n  border-radius: 7px;\n  line-height: 1.7;\n  overflow-wrap: anywhere;\n}\n.bs-error button {\n  display: block;\n  margin-top: 8px;\n}\n.bs-top button {\n  app-region: no-drag;\n}\n.bs-assistant-hidden .bs-library {\n  max-width: 1350px;\n  margin: 0 auto;\n  width: 100%;\n}\n@keyframes bs-flash {\n  0%,\n  25% {\n    background: color-mix(in srgb, var(--bs-accent) 28%, transparent);\n  }\n  100% {\n    background: transparent;\n  }\n}\n@media (prefers-reduced-motion: reduce) {\n  .bs-app * {\n    animation: none !important;\n    transition: none !important;\n  }\n}\n@media (max-width: 1100px) {\n  .bs-app {\n    --assistant-width: 310px;\n  }\n  .bs-library {\n    padding: 28px 24px;\n  }\n  .bs-grid {\n    gap: 22px 18px;\n    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));\n  }\n  .bs-toc {\n    flex-basis: 120px;\n    width: 120px;\n  }\n  .bs-page {\n    padding: 25px 27px 50px;\n  }\n  .bs-assistant header {\n    padding: 12px;\n  }\n  .bs-library-heading {\n    gap: 14px;\n  }\n}\n@media (max-width: 760px) {\n  .bs-workspace {\n    position: relative;\n  }\n  .bs-assistant {\n    position: absolute;\n    inset: 0 0 0 auto;\n    width: min(100%, 365px);\n    z-index: 4;\n    border-left: 1px solid var(--bs-line);\n    box-shadow: -16px 0 50px #0004;\n  }\n  .bs-resizer {\n    display: none;\n  }\n  .bs-library {\n    min-width: 0;\n    padding: 24px 18px;\n  }\n  .bs-grid {\n    grid-template-columns: repeat(auto-fill, minmax(125px, 1fr));\n  }\n  .bs-top {\n    padding: 0 16px;\n  }\n  .bs-library h1 {\n    font-size: 26px;\n  }\n  .bs-toc {\n    flex-basis: 100px;\n    width: 100px;\n    padding: 8px 4px;\n  }\n  .bs-toc .bs-tabs button {\n    font-size: 10px;\n    padding: 5px;\n  }\n  .bs-reader {\n    min-width: 0;\n  }\n  .bs-reader-toolbar {\n    padding: 8px 5px;\n  }\n  .bs-reader-toolbar button {\n    font-size: 11px;\n    padding: 5px;\n  }\n  .bs-page {\n    padding: 24px 22px;\n  }\n  .bs-filter-row > .bs-tabs {\n    gap: 0;\n  }\n  .bs-filter-row > .bs-tabs button {\n    font-size: 11px;\n    padding: 6px;\n  }\n  .bs-filter-row select {\n    font-size: 10px;\n    max-width: 88px;\n  }\n}\n.bs-selection-bar {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  padding: 9px 12px;\n  border-top: 1px solid var(--bs-line);\n  background: var(--bs-panel);\n  flex-shrink: 0;\n  font: 12px system-ui;\n}\n.bs-selection-bar span {\n  flex: 1;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n  color: var(--bs-muted);\n}\n.bs-selection-bar button {\n  white-space: nowrap;\n  border-color: var(--bs-line);\n}\n.bs-message-text {\n  white-space: normal;\n}\n.bs-message-text p {\n  margin: 0 0 0.9em;\n}\n.bs-message-text a {\n  color: var(--dsw-alias-brand-text, var(--bs-text));\n  text-decoration: underline;\n  text-underline-offset: 3px;\n}\n.bs-message-text a[href^="bookshelf:"] {\n  border-bottom: 1px solid var(--bs-line);\n  text-decoration: none;\n  padding: 0 3px;\n}\n.bs-message-text blockquote {\n  margin: 10px 0;\n  border-left: 2px solid var(--bs-accent);\n  padding-left: 12px;\n  color: var(--bs-muted);\n}\n.bs-message-text pre {\n  background: var(--bs-panel);\n  padding: 10px;\n  overflow: auto;\n}\n.bs-message-text h1,\n.bs-message-text h2,\n.bs-message-text h3 {\n  font-size: 1.1em;\n  margin: 20px 0 12px;\n}\n.bs-message-text ul,\n.bs-message-text ol {\n  padding-left: 22px;\n}\n.bs-message-text table {\n  font-size: 12px;\n  display: block;\n  overflow: auto;\n  border-collapse: collapse;\n}\n.bs-message-text th,\n.bs-message-text td {\n  border: 1px solid var(--bs-line);\n  padding: 5px 8px;\n}\n';
+var style_default = '.bs-app {\n  --bs-bg: var(--dsw-alias-bg-base, #151516);\n  --bs-panel: var(--dsw-alias-bg-layer-1, #202122);\n  --bs-text: var(--dsw-alias-label-primary, #ececea);\n  --bs-muted: var(--dsw-alias-label-tertiary, #969a97);\n  --bs-line: var(--dsw-alias-border-l1, #343638);\n  --bs-accent: var(--dsw-alias-brand-primary, #80ab99);\n  height: 100%;\n  display: flex;\n  flex-direction: column;\n  background: var(--bs-bg);\n  color: var(--bs-text);\n  font-family: inherit;\n  font-size: 13px;\n  overflow: hidden;\n  --assistant-width: 365px;\n}\n.bs-app *,\n.bs-modal * {\n  box-sizing: border-box;\n}\n.bs-app button,\n.bs-app input,\n.bs-app textarea,\n.bs-app select,\n.bs-modal button,\n.bs-modal input,\n.bs-modal textarea,\n.bs-modal select {\n  font: inherit;\n  color: inherit;\n}\n.bs-app button,\n.bs-modal button {\n  border: 1px solid transparent;\n  border-radius: 7px;\n  background: transparent;\n  padding: 7px 10px;\n  cursor: pointer;\n  transition:\n    background 0.15s,\n    color 0.15s;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 7px;\n}\n.bs-app button:hover,\n.bs-modal button:hover {\n  background: var(--bs-panel, #303331);\n}\n.bs-app button:disabled,\n.bs-modal button:disabled {\n  opacity: 0.45;\n  cursor: default;\n}\n.bs-app :focus-visible,\n.bs-modal :focus-visible {\n  outline: 2px solid var(--bs-accent, #80ab99);\n  outline-offset: 3px;\n}\n.bs-app .bs-primary,\n.bs-modal .bs-primary {\n  background: var(--bs-accent, #80ab99);\n  color: var(--dsw-alias-label-primary-inverted, #10271f);\n  border-color: transparent;\n  font-weight: 600;\n}\n.bs-app .bs-primary:hover,\n.bs-modal .bs-primary:hover {\n  filter: brightness(1.08);\n  background: var(--bs-accent, #80ab99);\n}\n.bs-top {\n  min-height: 52px;\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 0 24px;\n  padding-left: max(24px, var(--dsh-frame-leading-clearance, 0px));\n  border-bottom: 1px solid var(--bs-line);\n  flex-shrink: 0;\n}\n.bs-top > span,\n.bs-assistant > header > span {\n  display: flex;\n  align-items: center;\n  gap: 9px;\n  font-weight: 600;\n}\n.bs-top > button {\n  color: var(--bs-muted);\n}\n.bs-workspace {\n  display: flex;\n  flex: 1;\n  min-height: 0;\n  min-width: 0;\n}\n.bs-library {\n  flex: 1;\n  min-width: 300px;\n  padding: 42px clamp(22px, 4vw, 58px);\n  overflow: auto;\n  scrollbar-gutter: stable;\n}\n.bs-eyebrow {\n  font-size: 10px;\n  letter-spacing: 2.3px;\n  color: var(--bs-muted);\n  margin: 0 0 10px;\n}\n.bs-library-heading {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 20px;\n  margin-bottom: 30px;\n  flex-wrap: wrap;\n}\n.bs-library h1 {\n  font-size: 29px;\n  font-weight: 550;\n  letter-spacing: 1px;\n  margin: 0 0 12px;\n}\n.bs-library h1 small {\n  font: 12px system-ui;\n  vertical-align: middle;\n  letter-spacing: 0;\n  border: 1px solid var(--bs-line);\n  border-radius: 4px;\n  padding: 2px 6px;\n  color: var(--bs-muted);\n  margin-left: 7px;\n}\n.bs-muted {\n  color: var(--bs-muted);\n  line-height: 1.6;\n}\n.bs-actions {\n  display: flex;\n  gap: 8px;\n}\n.bs-actions > button:first-child,\n.bs-search-row > button {\n  border-color: var(--bs-line);\n}\n.bs-filter-row {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  border-bottom: 1px solid var(--bs-line);\n  padding-bottom: 12px;\n  gap: 8px;\n}\n.bs-tabs {\n  display: flex;\n  gap: 4px;\n}\n.bs-tabs button {\n  color: var(--bs-muted);\n  white-space: nowrap;\n}\n.bs-tabs button[aria-pressed="true"] {\n  background: var(--bs-panel);\n  color: var(--bs-text);\n}\n.bs-app select {\n  border: 1px solid var(--bs-line);\n  border-radius: 6px;\n  padding: 6px;\n  background: var(--bs-bg);\n  font-size: 12px;\n  max-width: 120px;\n}\n.bs-search-row {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  margin: 18px 0 27px;\n}\n.bs-search {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  flex: 1;\n  min-width: 80px;\n  background: var(--bs-panel);\n  border: 1px solid var(--bs-line);\n  border-radius: 8px;\n  padding: 0 10px;\n}\n.bs-search > span {\n  font-size: 22px;\n  color: var(--bs-muted);\n}\n.bs-search input {\n  flex: 1;\n  min-width: 0;\n  background: transparent;\n  border: 0;\n  outline: 0;\n  padding: 9px 0;\n}\n.bs-grid {\n  display: grid;\n  grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));\n  column-gap: 25px;\n  row-gap: 34px;\n}\n.bs-card {\n  min-width: 0;\n  position: relative;\n  content-visibility: auto;\n  contain-intrinsic-size: auto 315px;\n}\n.bs-card .bs-card-open {\n  display: block;\n  padding: 0;\n  width: 100%;\n  text-align: left;\n  border-radius: 3px;\n}\n.bs-card .bs-card-open:hover {\n  background: transparent;\n}\n.bs-cover {\n  aspect-ratio: 1/1.44;\n  width: 100%;\n  position: relative;\n  overflow: hidden;\n  border-radius: 2px;\n  background: hsl(var(--book-hue) 20% 29%);\n  box-shadow: 2px 6px 15px #0003;\n  transition:\n    transform 0.2s,\n    box-shadow 0.2s;\n}\n.bs-card-open:hover .bs-cover {\n  transform: translateY(-4px);\n  box-shadow: 2px 10px 20px #0005;\n}\n.bs-cover:after {\n  content: "";\n  position: absolute;\n  inset: 0;\n  box-shadow:\n    inset 3px 0 5px #fff2,\n    inset -1px 0 2px #0003;\n  pointer-events: none;\n}\n.bs-cover img {\n  width: 100%;\n  height: 100%;\n  object-fit: cover;\n}\n.bs-cover-type {\n  height: 100%;\n  display: flex;\n  flex-direction: column;\n  padding: 21px 17px;\n  color: #f4ecda;\n  background: linear-gradient(\n    100deg,\n    #0002,\n    transparent 8%,\n    #ffffff05 90%,\n    #0002\n  );\n  position: relative;\n}\n.bs-cover-type:after {\n  content: "";\n  position: absolute;\n  inset: 11px;\n  border: 1px solid #ffffff25;\n  pointer-events: none;\n}\n.bs-cover-type small {\n  font-size: 8px;\n  letter-spacing: 1.5px;\n  opacity: 0.65;\n}\n.bs-cover-type strong {\n  font-family: Georgia, "Songti SC", serif;\n  font-size: clamp(20px, 2vw, 30px);\n  font-weight: 500;\n  line-height: 1.45;\n  margin: auto 0 17px;\n  display: -webkit-box;\n  -webkit-line-clamp: 4;\n  -webkit-box-orient: vertical;\n  overflow: hidden;\n}\n.bs-cover-type span {\n  font-size: 10px;\n  opacity: 0.65;\n}\n.bs-cover-type svg {\n  margin-top: auto;\n  opacity: 0.4;\n}\n.bs-card h3 {\n  font-size: 13px;\n  font-weight: 500;\n  line-height: 1.6;\n  margin: 11px 0 4px;\n  display: -webkit-box;\n  -webkit-line-clamp: 2;\n  -webkit-box-orient: vertical;\n  overflow: hidden;\n}\n.bs-card p {\n  margin: 0;\n  color: var(--bs-muted);\n  font-size: 11px;\n  line-height: 1.5;\n  white-space: nowrap;\n  text-overflow: ellipsis;\n  overflow: hidden;\n}\n.bs-card-meta {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  margin-top: 8px;\n  color: var(--bs-muted);\n  font-size: 10px;\n}\n.bs-card-meta > span {\n  border: 1px solid var(--bs-line);\n  border-radius: 3px;\n  padding: 2px 4px;\n}\n.bs-card-meta > button {\n  margin-left: auto;\n  font-size: 17px;\n  line-height: 10px;\n  padding: 2px 6px;\n}\n.bs-card progress {\n  height: 3px;\n  width: 100%;\n  accent-color: var(--bs-accent);\n  margin-top: 9px;\n  border: 0;\n}\n.bs-empty {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  text-align: center;\n  min-height: 360px;\n  padding: 40px 15px;\n  gap: 12px;\n}\n.bs-empty > svg {\n  color: var(--bs-accent);\n  opacity: 0.6;\n}\n.bs-empty h2 {\n  font-size: 23px;\n  font-weight: 500;\n  margin: 10px 0 0;\n}\n.bs-empty p {\n  color: var(--bs-muted);\n  line-height: 1.8;\n  margin: 0 0 12px;\n}\n.bs-empty small {\n  color: var(--bs-muted);\n  font-size: 11px;\n  margin-top: 14px;\n}\n.bs-file-input {\n  display: none;\n}\n.bs-assistant {\n  flex: 0 0 var(--assistant-width);\n  width: var(--assistant-width);\n  min-width: 0;\n  display: flex;\n  flex-direction: column;\n  background: var(--bs-bg);\n}\n.bs-assistant > header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 8px;\n  padding: 14px 16px;\n  border-bottom: 1px solid var(--bs-line);\n  min-height: 53px;\n}\n.bs-assistant > header button {\n  font-size: 11px;\n  color: var(--bs-muted);\n}\n.bs-assistant-scope {\n  font-size: 11px;\n  color: var(--bs-muted);\n  padding: 12px 18px;\n  border-bottom: 1px solid var(--bs-line);\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n}\n.bs-chat {\n  flex: 1;\n  min-height: 0;\n  overflow: auto;\n  padding: 15px 18px;\n}\n.bs-chat-empty {\n  margin: 65px 0 20px;\n  display: flex;\n  flex-direction: column;\n  align-items: flex-start;\n  gap: 10px;\n}\n.bs-chat-empty > svg {\n  color: var(--bs-accent);\n  margin-bottom: 10px;\n}\n.bs-chat-empty h3 {\n  font-size: 19px;\n  font-weight: 500;\n  margin: 0;\n  line-height: 1.6;\n}\n.bs-chat-empty p {\n  color: var(--bs-muted);\n  font-size: 12px;\n  line-height: 1.8;\n  margin-bottom: 20px;\n}\n.bs-chat-empty button {\n  font-size: 12px;\n  border: 1px solid var(--bs-line);\n  width: 100%;\n  justify-content: space-between;\n  text-align: left;\n  line-height: 1.6;\n}\n.bs-message {\n  margin: 10px 0 28px;\n  overflow-wrap: anywhere;\n}\n.bs-message > small {\n  color: var(--bs-muted);\n  font-size: 10px;\n  display: block;\n  margin-bottom: 8px;\n}\n.bs-message-text {\n  white-space: pre-wrap;\n  line-height: 1.9;\n}\n.bs-user .bs-message-text {\n  padding: 12px 14px;\n  border-radius: 10px;\n  background: var(--bs-panel);\n  font-size: 12px;\n}\n.bs-app .bs-citation {\n  display: inline;\n  padding: 1px 5px;\n  color: var(--bs-accent);\n  border: 1px solid var(--bs-line);\n  font-size: 12px;\n}\n.bs-composer {\n  border: 1px solid var(--bs-line);\n  border-radius: 12px;\n  background: var(--bs-panel);\n  margin: 12px 14px 18px;\n  padding: 12px;\n  flex-shrink: 0;\n}\n.bs-composer textarea {\n  resize: none;\n  width: 100%;\n  min-height: 66px;\n  max-height: 160px;\n  border: 0;\n  background: transparent;\n  outline: 0;\n  line-height: 1.6;\n}\n.bs-composer footer {\n  display: flex;\n  justify-content: space-between;\n  align-items: center;\n  gap: 6px;\n  margin-top: 8px;\n}\n.bs-composer small {\n  color: var(--bs-muted);\n  font-size: 10px;\n}\n.bs-resizer {\n  flex: 0 0 5px;\n  cursor: col-resize;\n  touch-action: none;\n  border-left: 1px solid var(--bs-line);\n  background: transparent;\n}\n.bs-resizer:hover {\n  background: var(--bs-accent);\n}\n.bs-toc-resizer {\n  flex-basis: 5px;\n  margin-right: -4px;\n  position: relative;\n  z-index: 1;\n}\n.bs-lookup-resizer {\n  cursor: row-resize;\n  border-left: 0;\n  border-top: 1px solid var(--bs-line);\n  margin-bottom: -4px;\n  position: relative;\n  z-index: 1;\n}\n.bs-notice {\n  padding: 10px 22px;\n  background: var(--bs-panel);\n  border-bottom: 1px solid var(--bs-line);\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  line-height: 1.6;\n  flex-shrink: 0;\n}\n.bs-import-progress {\n  padding: 10px;\n  background: var(--bs-panel);\n  display: flex;\n  gap: 15px;\n  align-items: center;\n  margin-bottom: 20px;\n  font-size: 12px;\n}\n.bs-import-progress progress {\n  width: 90px;\n  accent-color: var(--bs-accent);\n}\n.bs-import-result {\n  margin: 0 0 20px;\n  color: var(--bs-muted);\n  font-size: 11px;\n}\n.bs-import-result p {\n  overflow-wrap: anywhere;\n}\n.bs-results > button {\n  display: block;\n  width: 100%;\n  text-align: left;\n  border: 1px solid var(--bs-line);\n  margin-bottom: 10px;\n  padding: 15px;\n  line-height: 1.8;\n}\n.bs-results small {\n  color: var(--bs-muted);\n}\n.bs-results p {\n  margin: 8px 0;\n}\n.bs-results span {\n  color: var(--bs-accent);\n  font-size: 11px;\n}\n.bs-load-more {\n  display: block !important;\n  margin: 25px auto;\n}\n.bs-reader {\n  flex: 1;\n  min-width: 300px;\n  display: flex;\n  flex-direction: column;\n  min-height: 0;\n}\n.bs-reader-toolbar {\n  display: flex;\n  align-items: center;\n  gap: 5px;\n  padding: 10px 15px;\n  border-bottom: 1px solid var(--bs-line);\n  flex-shrink: 0;\n}\n.bs-reader-toolbar > span {\n  flex: 1;\n  overflow: hidden;\n  white-space: nowrap;\n  text-overflow: ellipsis;\n  text-align: center;\n  font-size: 12px;\n  color: var(--bs-muted);\n  padding: 0 8px;\n}\n.bs-reader-body {\n  --toc-width: 158px;\n  flex: 1;\n  min-height: 0;\n  display: flex;\n}\n.bs-toc {\n  flex: 0 0 min(var(--toc-width), 50%);\n  padding: 12px 9px;\n  overflow: auto;\n}\n.bs-toc > .bs-tabs {\n  position: sticky;\n  top: -12px;\n  background: var(--bs-bg);\n  padding: 5px 0 10px;\n}\n.bs-toc > button {\n  display: flex;\n  width: 100%;\n  justify-content: flex-start;\n  text-align: left;\n  font-size: 11px;\n  line-height: 1.8;\n  margin: 3px 0;\n  gap: 8px;\n}\n.bs-toc button small {\n  opacity: 0.5;\n  font-size: 10px;\n}\n.bs-toc .bs-selected {\n  background: var(--bs-panel);\n  color: var(--bs-accent);\n}\n.bs-page-column {\n  flex: 1;\n  min-width: 0;\n  display: flex;\n  flex-direction: column;\n}\n.bs-page {\n  flex: 1;\n  min-width: 0;\n  min-height: 0;\n  overflow: auto;\n  padding: 35px clamp(25px, 4vw, 70px) 70px;\n  scrollbar-gutter: stable;\n  line-height: 1.95;\n  font-family: Georgia, "Songti SC", "Noto Serif CJK SC", serif;\n}\n.bs-page-heading small {\n  font: 11px system-ui;\n  color: var(--bs-muted);\n}\n.bs-page-heading h1 {\n  font-size: 1.6em;\n  line-height: 1.5;\n  font-weight: 500;\n  margin: 12px 0 35px;\n}\n.bs-block {\n  position: relative;\n  border-radius: 3px;\n  scroll-margin-top: 30px;\n}\n.bs-block p {\n  margin: 0 0 1.1em;\n}\n.bs-block img {\n  max-width: 100%;\n  height: auto;\n  display: block;\n  margin: auto;\n}\n.bs-block pre {\n  overflow: auto;\n  font-size: 0.8em;\n  background: var(--bs-panel);\n  padding: 14px;\n}\n.bs-block table {\n  border-collapse: collapse;\n  font-size: 0.8em;\n  display: block;\n  overflow: auto;\n}\n.bs-block td,\n.bs-block th {\n  border: 1px solid var(--bs-line);\n  padding: 6px;\n}\n.bs-block h1,\n.bs-block h2,\n.bs-block h3 {\n  font-size: 1.25em;\n  font-weight: 600;\n  line-height: 1.6;\n}\n.bs-block blockquote {\n  border-left: 2px solid var(--bs-accent);\n  margin: 1em 0;\n  padding-left: 20px;\n  color: var(--bs-muted);\n}\n.bs-highlight {\n  box-shadow: inset 3px 0 var(--bs-accent);\n  background: color-mix(in srgb, var(--bs-accent) 8%, transparent);\n}\n.bs-app .bs-bookmark {\n  position: absolute;\n  left: -25px;\n  top: 3px;\n  font: 14px system-ui;\n  padding: 2px 4px;\n  opacity: 0;\n  color: var(--bs-muted);\n}\n.bs-block:hover .bs-bookmark,\n.bs-bookmark:focus-visible {\n  opacity: 1;\n}\n.bs-flash {\n  animation: bs-flash 2.4s ease-out;\n}\n.bs-chapter-nav {\n  display: flex;\n  justify-content: space-between;\n  border-top: 1px solid var(--bs-line);\n  padding-top: 20px;\n  margin-top: 40px;\n  font: 12px system-ui;\n}\n.bs-paper .bs-page {\n  background: #f1eadb;\n  color: #39392f;\n}\n.bs-paper .bs-page .bs-muted,\n.bs-paper .bs-page-heading small {\n  color: #747464;\n}\n.bs-note {\n  border-bottom: 1px solid var(--bs-line);\n  padding: 10px 0;\n  font-size: 11px;\n}\n.bs-note > button {\n  text-align: left;\n  display: -webkit-box;\n  -webkit-line-clamp: 4;\n  -webkit-box-orient: vertical;\n  overflow: hidden;\n  line-height: 1.8;\n  padding: 0;\n}\n.bs-note p {\n  line-height: 1.8;\n  color: var(--bs-muted);\n  white-space: pre-wrap;\n}\n.bs-note > div button {\n  font-size: 10px;\n  color: var(--bs-muted);\n  padding: 4px;\n}\n.bs-modal {\n  --bs-bg: var(--dsw-alias-bg-base, #202122);\n  --bs-panel: var(--dsw-alias-bg-layer-1, #303331);\n  --bs-text: var(--dsw-alias-label-primary, #eeefeb);\n  --bs-muted: var(--dsw-alias-label-tertiary, #999d99);\n  --bs-line: var(--dsw-alias-border-l1, #424441);\n  --bs-accent: var(--dsw-alias-brand-primary, #80ab99);\n  background: var(--bs-bg);\n  color: var(--bs-text);\n  border: 1px solid var(--bs-line);\n  border-radius: 14px;\n  max-width: min(480px, calc(100vw - 36px));\n  width: 480px;\n  max-height: 85vh;\n  padding: 22px;\n  box-shadow: 0 18px 80px #0006;\n  font: 13px system-ui;\n  overflow: auto;\n}\n.bs-modal::backdrop {\n  background: #0006;\n  backdrop-filter: blur(4px);\n}\n.bs-modal header {\n  display: flex;\n  justify-content: space-between;\n  align-items: center;\n  gap: 10px;\n  margin-bottom: 18px;\n}\n.bs-modal h3 {\n  margin: 0;\n  font-size: 18px;\n  font-weight: 550;\n}\n.bs-modal label {\n  display: flex;\n  flex-direction: column;\n  gap: 7px;\n  margin: 15px 0;\n  color: var(--bs-muted);\n  font-size: 12px;\n}\n.bs-modal input,\n.bs-modal textarea,\n.bs-modal select {\n  width: 100%;\n  padding: 10px;\n  background: var(--bs-panel);\n  border: 1px solid var(--bs-line);\n  border-radius: 7px;\n  outline: 0;\n  color: var(--bs-text);\n}\n.bs-modal textarea {\n  min-height: 130px;\n  resize: vertical;\n}\n.bs-modal footer {\n  display: flex;\n  justify-content: flex-end;\n  gap: 8px;\n  margin-top: 22px;\n}\n.bs-modal blockquote {\n  border-left: 2px solid var(--bs-accent);\n  margin: 0 0 16px;\n  padding: 8px 14px;\n  max-height: 160px;\n  overflow: auto;\n  line-height: 1.8;\n  color: var(--bs-muted);\n}\n.bs-source,\n.bs-roots p {\n  font-size: 11px;\n  overflow-wrap: anywhere;\n  line-height: 1.7;\n}\n.bs-error {\n  padding: 12px;\n  border: 1px solid var(--bs-line);\n  border-radius: 7px;\n  line-height: 1.7;\n  overflow-wrap: anywhere;\n}\n.bs-error button {\n  display: block;\n  margin-top: 8px;\n}\n.bs-top button {\n  app-region: no-drag;\n}\n.bs-assistant-hidden .bs-library {\n  max-width: 1350px;\n  margin: 0 auto;\n  width: 100%;\n}\n@keyframes bs-flash {\n  0%,\n  25% {\n    background: color-mix(in srgb, var(--bs-accent) 28%, transparent);\n  }\n  100% {\n    background: transparent;\n  }\n}\n@media (prefers-reduced-motion: reduce) {\n  .bs-app * {\n    animation: none !important;\n    transition: none !important;\n  }\n}\n@media (max-width: 1100px) {\n  .bs-app {\n    --assistant-width: 310px;\n  }\n  .bs-library {\n    padding: 28px 24px;\n  }\n  .bs-grid {\n    gap: 22px 18px;\n    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));\n  }\n  .bs-reader-body {\n    --toc-width: 120px;\n  }\n  .bs-page {\n    padding: 25px 27px 50px;\n  }\n  .bs-assistant header {\n    padding: 12px;\n  }\n  .bs-library-heading {\n    gap: 14px;\n  }\n}\n@media (max-width: 760px) {\n  .bs-workspace {\n    position: relative;\n  }\n  .bs-assistant {\n    position: absolute;\n    inset: 0 0 0 auto;\n    width: min(100%, 365px);\n    z-index: 4;\n    border-left: 1px solid var(--bs-line);\n    box-shadow: -16px 0 50px #0004;\n  }\n  .bs-resizer {\n    display: none;\n  }\n  .bs-library {\n    min-width: 0;\n    padding: 24px 18px;\n  }\n  .bs-grid {\n    grid-template-columns: repeat(auto-fill, minmax(125px, 1fr));\n  }\n  .bs-top {\n    padding: 0 16px;\n  }\n  .bs-library h1 {\n    font-size: 26px;\n  }\n  .bs-reader-body {\n    --toc-width: 100px;\n  }\n  .bs-toc {\n    padding: 8px 4px;\n  }\n  .bs-reader-body .bs-toc-resizer,\n  .bs-lookup > .bs-lookup-resizer {\n    display: block;\n  }\n  .bs-toc .bs-tabs button {\n    font-size: 10px;\n    padding: 5px;\n  }\n  .bs-reader {\n    min-width: 0;\n  }\n  .bs-reader-toolbar {\n    padding: 8px 5px;\n  }\n  .bs-reader-toolbar button {\n    font-size: 11px;\n    padding: 5px;\n  }\n  .bs-page {\n    padding: 24px 22px;\n  }\n  .bs-filter-row > .bs-tabs {\n    gap: 0;\n  }\n  .bs-filter-row > .bs-tabs button {\n    font-size: 11px;\n    padding: 6px;\n  }\n  .bs-filter-row select {\n    font-size: 10px;\n    max-width: 88px;\n  }\n}\n.bs-selection-bar {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  padding: 9px 12px;\n  border-top: 1px solid var(--bs-line);\n  background: var(--bs-panel);\n  flex-shrink: 0;\n  font: 12px system-ui;\n}\n.bs-selection-bar span {\n  flex: 1;\n  min-width: 0;\n  max-height: 7.5em;\n  overflow: auto;\n  overflow-wrap: anywhere;\n  line-height: 1.5;\n  color: var(--bs-muted);\n}\n.bs-selection-bar button {\n  white-space: nowrap;\n  border-color: var(--bs-line);\n}\n.bs-message-text {\n  white-space: normal;\n}\n.bs-message-text p {\n  margin: 0 0 0.9em;\n}\n.bs-message-text a {\n  color: var(--dsw-alias-brand-text, var(--bs-text));\n  text-decoration: underline;\n  text-underline-offset: 3px;\n}\n.bs-message-text a[href^="bookshelf:"] {\n  border-bottom: 1px solid var(--bs-line);\n  text-decoration: none;\n  padding: 0 3px;\n}\n.bs-message-text blockquote {\n  margin: 10px 0;\n  border-left: 2px solid var(--bs-accent);\n  padding-left: 12px;\n  color: var(--bs-muted);\n}\n.bs-message-text pre {\n  background: var(--bs-panel);\n  padding: 10px;\n  overflow: auto;\n}\n.bs-message-text h1,\n.bs-message-text h2,\n.bs-message-text h3 {\n  font-size: 1.1em;\n  margin: 20px 0 12px;\n}\n.bs-message-text ul,\n.bs-message-text ol {\n  padding-left: 22px;\n}\n.bs-message-text table {\n  font-size: 12px;\n  display: block;\n  overflow: auto;\n  border-collapse: collapse;\n}\n.bs-message-text th,\n.bs-message-text td {\n  border: 1px solid var(--bs-line);\n  padding: 5px 8px;\n}\n.bs-lookup {\n  flex: 0 0 auto;\n  height: var(--lookup-height, 240px);\n  min-height: 120px;\n  max-height: 75%;\n  display: flex;\n  flex-direction: column;\n  background: var(--bs-panel);\n  font: 13px/1.7 system-ui;\n}\n.bs-lookup > header,\n.bs-lookup > footer {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 7px 12px 7px 16px;\n}\n.bs-lookup > header {\n  border-bottom: 1px solid var(--bs-line);\n}\n.bs-lookup > header strong {\n  font-size: 12px;\n  color: var(--bs-accent);\n}\n.bs-lookup > header span {\n  flex: 1;\n  min-width: 0;\n  max-height: 6.4em;\n  overflow: auto;\n  overflow-wrap: anywhere;\n  color: var(--bs-muted);\n  font:\n    15px/1.6 Georgia,\n    "Songti SC",\n    "Noto Serif CJK SC",\n    serif;\n}\n.bs-lookup > footer small {\n  flex: 1;\n  min-width: 0;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n  color: var(--bs-muted);\n  font-size: 12px;\n}\n.bs-lookup > footer {\n  border-top: 1px solid var(--bs-line);\n  flex-wrap: wrap;\n}\n.bs-lookup > footer small {\n  font-size: 11px;\n}\n.bs-lookup > footer button,\n.bs-context-explain > button,\n.bs-dict-setup form button {\n  border-color: var(--bs-line);\n  font-size: 12px;\n  white-space: nowrap;\n}\n.bs-lookup-body {\n  flex: 1;\n  min-height: 0;\n  overflow: auto;\n  padding: 12px 16px 8px;\n}\n.bs-lookup .bs-error {\n  margin: 8px 0;\n}\n.bs-translation {\n  margin: 0 0 8px;\n  white-space: pre-wrap;\n  font-family: Georgia, "Songti SC", "Noto Serif CJK SC", serif;\n  font-size: 15px;\n  line-height: 1.85;\n}\n.bs-dict-entry {\n  padding-bottom: 10px;\n  margin-bottom: 10px;\n  border-bottom: 1px dashed var(--bs-line);\n}\n.bs-dict-entry h4 {\n  margin: 0;\n  display: flex;\n  align-items: baseline;\n  flex-wrap: wrap;\n  gap: 10px;\n  font-size: 17px;\n  font-weight: 600;\n}\n.bs-phonetic {\n  font-size: 13px;\n  font-weight: 400;\n  color: var(--bs-muted);\n}\n.bs-dict-via {\n  margin: 0 0 4px;\n  font-size: 11px;\n  color: var(--bs-accent);\n}\n.bs-dict-tags {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 5px;\n  margin: 5px 0 2px;\n}\n.bs-dict-tags span {\n  padding: 0 6px;\n  border: 1px solid var(--bs-line);\n  border-radius: 4px;\n  font-size: 10px;\n  color: var(--bs-muted);\n}\n.bs-dict-entry ul {\n  margin: 6px 0;\n  padding-left: 18px;\n}\n.bs-dict-forms {\n  margin: 4px 0;\n  font-size: 12px;\n  color: var(--bs-muted);\n}\n.bs-dict-entry summary {\n  cursor: pointer;\n  font-size: 12px;\n  color: var(--bs-muted);\n}\n.bs-context-explain h4 {\n  margin: 0 0 4px;\n  font-size: 12px;\n  font-weight: 600;\n  color: var(--bs-accent);\n}\n.bs-context-explain .bs-message-text p:last-child {\n  margin-bottom: 0;\n}\n.bs-dict-setup {\n  display: grid;\n  gap: 10px;\n  padding-bottom: 12px;\n  margin-bottom: 10px;\n  border-bottom: 1px dashed var(--bs-line);\n}\n.bs-dict-setup p {\n  margin: 0;\n}\n.bs-dict-setup > button {\n  justify-self: start;\n}\n.bs-dict-setup form {\n  display: flex;\n  gap: 6px;\n}\n.bs-dict-setup input {\n  flex: 1;\n  min-width: 0;\n  padding: 6px 10px;\n  border: 1px solid var(--bs-line);\n  border-radius: 7px;\n  background: var(--bs-bg);\n}\n';
 
 // node_modules/marked/lib/marked.esm.js
 function L() {
@@ -3925,7 +3952,325 @@ function Assistant({
     )
   ] });
 }
+var tagNames = {
+  zk: "\u4E2D\u8003",
+  gk: "\u9AD8\u8003",
+  cet4: "\u56DB\u7EA7",
+  cet6: "\u516D\u7EA7",
+  ky: "\u8003\u7814",
+  toefl: "TOEFL",
+  ielts: "IELTS",
+  gre: "GRE"
+};
+var formNames = {
+  p: "\u8FC7\u53BB\u5F0F",
+  d: "\u8FC7\u53BB\u5206\u8BCD",
+  i: "\u73B0\u5728\u5206\u8BCD",
+  "3": "\u7B2C\u4E09\u4EBA\u79F0\u5355\u6570",
+  r: "\u6BD4\u8F83\u7EA7",
+  t: "\u6700\u9AD8\u7EA7",
+  s: "\u590D\u6570"
+};
+function isTerm(text2) {
+  const term = text2.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, "");
+  if (/\p{Script=Han}/u.test(term)) return term.length <= 6;
+  return term.length <= 60 && /^[\p{L}\p{M}][\p{L}\p{M}'’-]*(?: [\p{L}\p{M}'’-]+){0,3}$/u.test(term);
+}
+var megabytes = (n) => (n / 1048576).toFixed(1) + " MB";
+function useAssist(ctx) {
+  const [state, setState] = (0, import_react.useState)({
+    text: "",
+    running: false,
+    error: "",
+    model: "",
+    cached: false
+  });
+  const controller = (0, import_react.useRef)(null);
+  (0, import_react.useEffect)(() => () => controller.current?.abort(), []);
+  const stop = (0, import_react.useCallback)(() => {
+    controller.current?.abort();
+    controller.current = null;
+    setState((s) => ({ ...s, running: false }));
+  }, []);
+  const start = (0, import_react.useCallback)(
+    async (input) => {
+      controller.current?.abort();
+      const c = new AbortController();
+      controller.current = c;
+      setState({
+        text: "",
+        running: true,
+        error: "",
+        model: "",
+        cached: false
+      });
+      try {
+        const stream = ctx.remote.bookshelf.stream(
+          input,
+          c.signal
+        );
+        for await (const item of stream) {
+          if (c.signal.aborted) break;
+          if (item.type === "delta")
+            setState((s) => ({ ...s, text: s.text + item.text }));
+          else if (item.type === "done")
+            setState((s) => ({ ...s, model: item.model, cached: item.cached }));
+          else setState((s) => ({ ...s, error: item.message }));
+        }
+      } catch (e) {
+        if (!c.signal.aborted)
+          setState((s) => ({
+            ...s,
+            error: e?.message || String(e)
+          }));
+      } finally {
+        if (controller.current === c) {
+          controller.current = null;
+          setState((s) => ({ ...s, running: false }));
+        }
+      }
+    },
+    [ctx]
+  );
+  return { ...state, start, stop };
+}
+function DictionarySetup({
+  call,
+  onReady
+}) {
+  const [status, setStatus] = (0, import_react.useState)(null), [file, setFile] = (0, import_react.useState)(""), [error, setError] = (0, import_react.useState)("");
+  const running = !!status?.job.running;
+  (0, import_react.useEffect)(() => {
+    void call({ action: "dictionaryStatus" }).then(setStatus).catch((e) => setError(e.message));
+  }, [call]);
+  (0, import_react.useEffect)(() => {
+    if (!running) return;
+    const timer = setInterval(
+      () => void call({ action: "dictionaryStatus" }).then((next) => {
+        setStatus(next);
+        if (!next.job.running && next.installed && !next.job.error)
+          onReady();
+      }).catch((e) => setError(e.message)),
+      800
+    );
+    return () => clearInterval(timer);
+  }, [running, call, onReady]);
+  const run = (input) => {
+    setError("");
+    void call(input).then(setStatus).catch((e) => setError(e.message));
+  };
+  const job = status?.job;
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bs-dict-setup", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: "\u79BB\u7EBF\u8BCD\u5178\u5C1A\u672A\u5B89\u88C5\u3002\u5B89\u88C5\u5F00\u6E90\u82F1\u6C49\u8BCD\u5178 ECDICT\uFF08MIT \u534F\u8BAE\uFF0C\u7EA6 77 \u4E07\u8BCD\u6761\uFF09\u540E\uFF0C\u67E5\u8BCD\u5373\u65F6\u663E\u793A\u97F3\u6807\u3001\u91CA\u4E49\u4E0E\u8BCD\u5F62\u53D8\u5316\uFF0C\u65E0\u9700\u8054\u7F51\u3002" }),
+    running ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "bs-muted", role: "status", children: job.phase === "download" ? `\u6B63\u5728\u4E0B\u8F7D ${megabytes(job.received)}${job.total ? ` / ${megabytes(job.total)}` : ""}` : `\u6B63\u5728\u5EFA\u7ACB\u7D22\u5F15 \xB7 \u5DF2\u5904\u7406 ${job.received.toLocaleString()} \u6761` }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "button",
+        {
+          className: "bs-primary",
+          disabled: !status,
+          onClick: () => run({ action: "dictionaryInstall" }),
+          children: "\u4E0B\u8F7D ECDICT\uFF08\u7EA6 63 MB\uFF09"
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+        "form",
+        {
+          onSubmit: (e) => {
+            e.preventDefault();
+            run({ action: "dictionaryImport", path: file.trim() });
+          },
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              "input",
+              {
+                "aria-label": "\u672C\u5730 ecdict.csv \u7684\u7EDD\u5BF9\u8DEF\u5F84",
+                placeholder: "\u6216\u586B\u5199\u5DF2\u4E0B\u8F7D\u7684 ecdict.csv \u7EDD\u5BF9\u8DEF\u5F84",
+                value: file,
+                onChange: (e) => setFile(e.target.value)
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { disabled: !file.trim(), children: "\u5BFC\u5165" })
+          ]
+        }
+      )
+    ] }),
+    (error || job?.error) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "bs-error", role: "alert", children: error || job?.error })
+  ] });
+}
+function DictEntryView({ entry }) {
+  const via = entry.via?.types.map((t) => formNames[t]).filter(Boolean);
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("article", { className: "bs-dict-entry", children: [
+    entry.via && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", { className: "bs-dict-via", children: [
+      entry.via.word,
+      " \u662F ",
+      entry.word,
+      " \u7684",
+      via?.join("\u3001") || "\u53D8\u5316\u5F62\u5F0F"
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h4", { children: [
+      entry.word,
+      entry.phonetic && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "bs-phonetic", children: [
+        "/",
+        entry.phonetic,
+        "/"
+      ] })
+    ] }),
+    (entry.collins > 0 || entry.oxford || entry.tags.length > 0) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bs-dict-tags", children: [
+      entry.collins > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { title: "\u67EF\u6797\u65AF\u661F\u7EA7", children: "\u2605".repeat(entry.collins) }),
+      entry.oxford && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "\u725B\u6D25 3000" }),
+      entry.tags.map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: tagNames[t] || t }, t))
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", { children: entry.translation.map((line, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: line }, i)) }),
+    entry.forms.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "bs-dict-forms", children: entry.forms.map((f) => `${formNames[f.type]} ${f.word}`).join(" \xB7 ") }),
+    entry.definition.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("summary", { children: "\u82F1\u6587\u91CA\u4E49" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", { children: entry.definition.map((line, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: line }, i)) })
+    ] })
+  ] });
+}
+var entryNote = (e) => `${e.word}${e.phonetic ? ` /${e.phonetic}/` : ""}
+${e.translation.join("\n")}`;
+function drag(event, move, done) {
+  const handle = event.currentTarget;
+  handle.setPointerCapture(event.pointerId);
+  const end = () => {
+    handle.removeEventListener("pointermove", move);
+    handle.removeEventListener("pointerup", end);
+    handle.removeEventListener("pointercancel", end);
+    done?.();
+  };
+  handle.addEventListener("pointermove", move);
+  handle.addEventListener("pointerup", end);
+  handle.addEventListener("pointercancel", end);
+}
+function LookupCard({
+  ctx,
+  call,
+  lookup,
+  close,
+  save,
+  fail,
+  explain
+}) {
+  const assist = useAssist(ctx);
+  const card = (0, import_react.useRef)(null), height = (0, import_react.useRef)(Number(localStorage.getItem("bookshelf.lookup.v1")) || 0);
+  const [result, setResult] = (0, import_react.useState)(null), [error, setError] = (0, import_react.useState)(""), [saved, setSaved] = (0, import_react.useState)(false);
+  const word = lookup.mode === "word";
+  const loadEntries = (0, import_react.useCallback)(
+    () => void call({ action: "lookup", query: lookup.text }).then(setResult).catch((e) => setError(e.message)),
+    [call, lookup.text]
+  );
+  const translate = () => void assist.start({
+    kind: "translate",
+    text: lookup.text,
+    context: lookup.context
+  });
+  (0, import_react.useEffect)(() => {
+    if (word) loadEntries();
+    else translate();
+  }, []);
+  (0, import_react.useEffect)(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") close();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [close]);
+  const note = word ? [
+    ...(result?.entries || []).slice(0, 2).map(entryNote),
+    assist.text && `\u8BED\u5883\u91CA\u4E49\uFF1A${assist.text}`
+  ].filter(Boolean).join("\n\n") : assist.text;
+  function resize(event) {
+    const section = card.current;
+    const start = event.clientY, initial = section.getBoundingClientRect().height, limit = section.parentElement.clientHeight * 0.75;
+    drag(
+      event,
+      (e) => {
+        height.current = Math.round(
+          Math.max(120, Math.min(limit, initial + start - e.clientY))
+        );
+        section.style.setProperty("--lookup-height", `${height.current}px`);
+      },
+      () => localStorage.setItem("bookshelf.lookup.v1", String(height.current))
+    );
+  }
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+    "section",
+    {
+      className: "bs-lookup",
+      ref: card,
+      "aria-label": word ? "\u67E5\u8BCD\u7ED3\u679C" : "\u7FFB\u8BD1\u7ED3\u679C",
+      style: height.current ? {
+        "--lookup-height": `${height.current}px`
+      } : void 0,
+      children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          "div",
+          {
+            className: "bs-resizer bs-lookup-resizer",
+            role: "separator",
+            "aria-label": "\u62D6\u52A8\u8C03\u6574\u67E5\u8BCD\u680F\u9AD8\u5EA6",
+            "aria-orientation": "horizontal",
+            onPointerDown: resize
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("header", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: word ? "\u67E5\u8BCD" : "\u7FFB\u8BD1" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { title: lookup.text, children: lookup.text }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { "aria-label": "\u5173\u95ED", onClick: close, children: "\xD7" })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bs-lookup-body", "aria-live": "polite", children: [
+          word ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+            error ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "bs-error", role: "alert", children: error }) : !result ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "bs-muted", children: "\u6B63\u5728\u67E5\u8BE2\u2026" }) : !result.installed ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DictionarySetup, { call, onReady: loadEntries }) : result.entries.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", { className: "bs-muted", children: [
+              "\u79BB\u7EBF\u8BCD\u5178\u672A\u6536\u5F55\u300C",
+              lookup.text,
+              "\u300D",
+              explain ? "\uFF0C\u53EF\u4EE5\u8BD5\u8BD5\u7ED3\u5408\u4E0A\u4E0B\u6587\u89E3\u91CA\u3002" : "\u3002"
+            ] }) : result.entries.map((entry, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DictEntryView, { entry }, entry.word + i)),
+            explain && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bs-context-explain", children: assist.text || assist.running || assist.error ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h4", { children: "\u8BED\u5883\u91CA\u4E49" }),
+              assist.text ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RichText, { text: assist.text, open: () => {
+              } }) : assist.running && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "bs-muted", children: "\u6B63\u5728\u7ED3\u5408\u4E0A\u4E0B\u6587\u89E3\u91CA\u2026" })
+            ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              "button",
+              {
+                onClick: () => void assist.start({
+                  kind: "explain",
+                  text: lookup.text,
+                  context: lookup.context
+                }),
+                children: "\u7ED3\u5408\u4E0A\u4E0B\u6587\u89E3\u91CA \u2726"
+              }
+            ) })
+          ] }) : assist.text ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "bs-translation", children: assist.text }) : assist.running && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "bs-muted", children: "\u6B63\u5728\u7FFB\u8BD1\u2026" }),
+          assist.error && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "bs-error", role: "alert", children: assist.error })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("footer", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: assist.model ? `${assist.model}${assist.cached ? " \xB7 \u6765\u81EA\u7F13\u5B58" : ""}` : word ? "ECDICT \u79BB\u7EBF\u8BCD\u5178" : "\u6CBF\u7528 DSH \u9ED8\u8BA4\u6A21\u578B" }),
+          assist.running ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: assist.stop, children: "\u505C\u6B62" }) : !word && assist.error && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: translate, children: "\u91CD\u8BD5" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              disabled: !note || assist.running || saved,
+              onClick: () => void save(note).then(() => setSaved(true)).catch(fail),
+              children: saved ? "\u5DF2\u5B58\u4E3A\u7B14\u8BB0" : "\u5B58\u4E3A\u7B14\u8BB0"
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              disabled: !note,
+              onClick: () => void navigator.clipboard.writeText(note).catch(fail),
+              children: "\u590D\u5236"
+            }
+          )
+        ] })
+      ]
+    }
+  );
+}
 function Reader({
+  ctx,
   book,
   call,
   target,
@@ -3936,17 +4281,23 @@ function Reader({
 }) {
   const [chapterId, setChapterId] = (0, import_react.useState)(
     target.chapter || book.progress.chapter || book.chapters[0].id
-  ), [chapter, setChapter] = (0, import_react.useState)(null), [notes, setNotes] = (0, import_react.useState)([]), [tab, setTab] = (0, import_react.useState)("contents"), [selection, setSelection] = (0, import_react.useState)(null), [note, setNote] = (0, import_react.useState)(""), [editing, setEditing] = (0, import_react.useState)(null), [font, setFont] = (0, import_react.useState)(
+  ), [chapter, setChapter] = (0, import_react.useState)(null), [notes, setNotes] = (0, import_react.useState)([]), [tab, setTab] = (0, import_react.useState)("contents"), [selection, setSelection] = (0, import_react.useState)(null), [lookup, setLookup] = (0, import_react.useState)(null), [note, setNote] = (0, import_react.useState)(""), [editing, setEditing] = (0, import_react.useState)(null), [font, setFont] = (0, import_react.useState)(
     () => Number(localStorage.getItem("bookshelf.font.v1")) || 20
   ), [paper, setPaper] = (0, import_react.useState)(
     () => localStorage.getItem("bookshelf.paper.v1") === "true"
   ), [loading, setLoading] = (0, import_react.useState)(false), [noteDialog, setNoteDialog] = (0, import_react.useState)(false);
   const jump = (0, import_react.useRef)(null);
-  const scroll = (0, import_react.useRef)(null), position = (0, import_react.useRef)(null), saveTimer = (0, import_react.useRef)(null), request = (0, import_react.useRef)(0);
+  const scroll = (0, import_react.useRef)(null), body = (0, import_react.useRef)(null), tocWidth = (0, import_react.useRef)(Number(localStorage.getItem("bookshelf.toc.v1")) || 0), position = (0, import_react.useRef)(null), saveTimer = (0, import_react.useRef)(null), request = (0, import_react.useRef)(0);
   const refreshNotes = (0, import_react.useCallback)(
     () => call({ action: "annotations", bookId: book.id }).then(setNotes).catch(fail),
     [book.id, call]
   );
+  const closeLookup = (0, import_react.useCallback)(() => setLookup(null), []);
+  const [features, setFeatures] = (0, import_react.useState)({ contextExplain: false });
+  (0, import_react.useEffect)(() => {
+    void call({ action: "features" }).then(setFeatures).catch(() => {
+    });
+  }, [call]);
   (0, import_react.useEffect)(() => {
     void refreshNotes();
   }, [refreshNotes]);
@@ -3957,6 +4308,7 @@ function Reader({
     const generation = ++request.current;
     setLoading(true);
     setSelection(null);
+    setLookup(null);
     void call({ action: "chapter", bookId: book.id, chapter: chapterId }).then((c) => {
       if (generation !== request.current) return;
       setChapter(c);
@@ -4034,14 +4386,14 @@ function Reader({
       900
     );
   }
-  async function annotate(kind, block, quote) {
+  async function annotate(kind, block, quote, text2 = note) {
     await call({
       action: "annotate",
       bookId: book.id,
       chapter: chapterId,
       block,
       quote,
-      note: kind === "highlight" ? note : "",
+      note: kind === "highlight" ? text2 : "",
       kind
     });
     setSelection(null);
@@ -4049,16 +4401,52 @@ function Reader({
     setNote("");
     await refreshNotes();
   }
-  function selected() {
+  function selected(e) {
     const s = window.getSelection();
     if (!s || s.isCollapsed || !scroll.current?.contains(s.anchorNode) || !scroll.current.contains(s.focusNode))
       return;
     const node = s.anchorNode?.parentElement?.closest("[data-block]");
-    if (node)
-      setSelection({
-        block: node.dataset.block,
-        quote: s.toString().trim().slice(0, 4e3)
-      });
+    if (!node) return;
+    const next = {
+      block: node.dataset.block,
+      quote: s.toString().trim().slice(0, 4e3),
+      context: chapter?.blocks.find((b2) => b2.id === node.dataset.block)?.text.slice(0, 2e3) || ""
+    };
+    if (e.type === "mouseup" && e.detail === 2 && isTerm(next.quote))
+      open("word", next);
+    else setSelection(next);
+  }
+  function resizeToc(event) {
+    const container = body.current;
+    const start = event.clientX;
+    const width = container.querySelector(".bs-toc").getBoundingClientRect().width;
+    drag(
+      event,
+      (e) => {
+        tocWidth.current = Math.round(
+          Math.max(
+            100,
+            Math.min(
+              420,
+              container.clientWidth * 0.5,
+              width + e.clientX - start
+            )
+          )
+        );
+        container.style.setProperty("--toc-width", `${tocWidth.current}px`);
+      },
+      () => localStorage.setItem("bookshelf.toc.v1", String(tocWidth.current))
+    );
+  }
+  function open(mode, from = selection) {
+    setLookup({
+      id: Date.now(),
+      mode,
+      text: from.quote,
+      block: from.block,
+      context: from.context
+    });
+    setSelection(null);
   }
   return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { className: "bs-reader" + (paper ? " bs-paper" : ""), children: [
     /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bs-reader-toolbar", children: [
@@ -4110,210 +4498,251 @@ function Reader({
         }
       )
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bs-reader-body", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("nav", { className: "bs-toc", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bs-tabs", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-            "button",
-            {
-              "aria-pressed": tab === "contents",
-              onClick: () => setTab("contents"),
-              children: "\u76EE\u5F55"
-            }
-          ),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-            "button",
-            {
-              "aria-pressed": tab === "notes",
-              onClick: () => setTab("notes"),
-              children: [
-                "\u7B14\u8BB0 ",
-                notes.length
-              ]
-            }
-          )
-        ] }),
-        tab === "contents" ? book.chapters.map((c, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-          "button",
-          {
-            className: chapterId === c.id ? "bs-selected" : "",
-            onClick: () => setChapterId(c.id),
-            children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: String(i + 1).padStart(2, "0") }),
-              c.title
-            ]
-          },
-          c.id
-        )) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-          notes.map((a) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("article", { className: "bs-note", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+      "div",
+      {
+        className: "bs-reader-body",
+        ref: body,
+        style: tocWidth.current ? {
+          "--toc-width": `${tocWidth.current}px`
+        } : void 0,
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("nav", { className: "bs-toc", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bs-tabs", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                "button",
+                {
+                  "aria-pressed": tab === "contents",
+                  onClick: () => setTab("contents"),
+                  children: "\u76EE\u5F55"
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+                "button",
+                {
+                  "aria-pressed": tab === "notes",
+                  onClick: () => setTab("notes"),
+                  children: [
+                    "\u7B14\u8BB0 ",
+                    notes.length
+                  ]
+                }
+              )
+            ] }),
+            tab === "contents" ? book.chapters.map((c, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
               "button",
               {
-                onClick: () => {
-                  if (a.revision !== book.revision) {
-                    fail(
-                      new Error(
-                        "\u8FD9\u6761\u7B14\u8BB0\u6765\u81EA\u6B64\u524D\u7248\u672C\uFF0C\u5F15\u7528\u5185\u5BB9\u4FDD\u7559\u5728\u7B14\u8BB0\u4E2D"
-                      )
-                    );
-                    return;
-                  }
-                  jump.current = { chapter: a.chapter, block: a.block };
-                  setChapterId(a.chapter);
-                  requestAnimationFrame(
-                    () => scroll.current?.querySelector(`[data-block="${a.block}"]`)?.scrollIntoView()
-                  );
-                },
+                className: chapterId === c.id ? "bs-selected" : "",
+                onClick: () => setChapterId(c.id),
                 children: [
-                  a.kind === "bookmark" ? "\u2691 " : "",
-                  a.quote || "\u4E66\u7B7E"
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: String(i + 1).padStart(2, "0") }),
+                  c.title
+                ]
+              },
+              c.id
+            )) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+              notes.map((a) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("article", { className: "bs-note", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+                  "button",
+                  {
+                    onClick: () => {
+                      if (a.revision !== book.revision) {
+                        fail(
+                          new Error(
+                            "\u8FD9\u6761\u7B14\u8BB0\u6765\u81EA\u6B64\u524D\u7248\u672C\uFF0C\u5F15\u7528\u5185\u5BB9\u4FDD\u7559\u5728\u7B14\u8BB0\u4E2D"
+                          )
+                        );
+                        return;
+                      }
+                      jump.current = { chapter: a.chapter, block: a.block };
+                      setChapterId(a.chapter);
+                      requestAnimationFrame(
+                        () => scroll.current?.querySelector(`[data-block="${a.block}"]`)?.scrollIntoView()
+                      );
+                    },
+                    children: [
+                      a.kind === "bookmark" ? "\u2691 " : "",
+                      a.quote || "\u4E66\u7B7E"
+                    ]
+                  }
+                ),
+                a.note && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: a.note }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                    "button",
+                    {
+                      onClick: () => {
+                        setEditing(a);
+                        setNote(a.note);
+                      },
+                      children: "\u7F16\u8F91"
+                    }
+                  ),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                    "button",
+                    {
+                      onClick: () => void call({ action: "removeAnnotation", id: a.id }).then(refreshNotes).catch(fail),
+                      children: "\u79FB\u9664"
+                    }
+                  )
+                ] })
+              ] }, a.id)),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                "button",
+                {
+                  onClick: () => void call({ action: "exportNotes", bookId: book.id }).then((markdown) => {
+                    const url = URL.createObjectURL(
+                      new Blob([markdown], {
+                        type: "text/markdown;charset=utf-8"
+                      })
+                    );
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = book.title + "-\u9605\u8BFB\u7B14\u8BB0.md";
+                    a.click();
+                    setTimeout(() => URL.revokeObjectURL(url), 1e3);
+                  }).catch(fail),
+                  children: "\u5BFC\u51FA\u9605\u8BFB\u7B14\u8BB0 \u2197"
+                }
+              )
+            ] })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "div",
+            {
+              className: "bs-resizer bs-toc-resizer",
+              role: "separator",
+              "aria-label": "\u62D6\u52A8\u8C03\u6574\u76EE\u5F55\u5BBD\u5EA6",
+              "aria-orientation": "vertical",
+              onPointerDown: resizeToc
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bs-page-column", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+              "div",
+              {
+                className: "bs-page",
+                ref: scroll,
+                onScroll: track,
+                onMouseUp: selected,
+                onKeyUp: selected,
+                style: { fontSize: font },
+                children: [
+                  target.revision && target.revision !== book.revision ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "bs-error", children: "\u5F15\u7528\u5BF9\u5E94\u6B64\u524D\u7248\u672C\uFF0C\u5F53\u524D\u5C55\u793A\u6700\u65B0\u6B63\u6587\u3002" }) : null,
+                  loading ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "bs-muted", children: "\u6B63\u5728\u6253\u5F00\u7AE0\u8282\u2026" }) : chapter && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bs-page-heading", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("small", { children: [
+                        book.author,
+                        " \xB7 ",
+                        book.format
+                      ] }),
+                      chapter.blocks[0]?.text !== chapter.title && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", { children: chapter.title })
+                    ] }),
+                    chapter.blocks.map((block) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+                      "div",
+                      {
+                        "data-block": block.id,
+                        className: "bs-block" + (notes.some(
+                          (n) => n.revision === book.revision && n.chapter === chapterId && n.block === block.id
+                        ) ? " bs-highlight" : ""),
+                        children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { dangerouslySetInnerHTML: { __html: block.html } }),
+                          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                            "button",
+                            {
+                              className: "bs-bookmark",
+                              title: "\u6DFB\u52A0\u4E66\u7B7E",
+                              "aria-label": "\u4E3A\u8BE5\u6BB5\u6DFB\u52A0\u4E66\u7B7E",
+                              onClick: () => void annotate(
+                                "bookmark",
+                                block.id,
+                                block.text.slice(0, 180)
+                              ).catch(fail),
+                              children: "\u2691"
+                            }
+                          )
+                        ]
+                      },
+                      block.id
+                    )),
+                    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bs-chapter-nav", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                        "button",
+                        {
+                          disabled: chapterId === book.chapters[0].id,
+                          onClick: () => setChapterId(
+                            book.chapters[book.chapters.findIndex((c) => c.id === chapterId) - 1].id
+                          ),
+                          children: "\u2190 \u4E0A\u4E00\u7AE0"
+                        }
+                      ),
+                      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                        "button",
+                        {
+                          disabled: chapterId === book.chapters.at(-1).id,
+                          onClick: () => setChapterId(
+                            book.chapters[book.chapters.findIndex((c) => c.id === chapterId) + 1].id
+                          ),
+                          children: "\u4E0B\u4E00\u7AE0 \u2192"
+                        }
+                      )
+                    ] })
+                  ] })
                 ]
               }
             ),
-            a.note && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: a.note }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+            selection && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bs-selection-bar", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: selection.quote }),
+              isTerm(selection.quote) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => open("word"), children: "\u67E5\u8BCD" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => open("translate"), children: "\u7FFB\u8BD1" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                "button",
+                {
+                  onClick: () => void annotate(
+                    "highlight",
+                    selection.block,
+                    selection.quote
+                  ).catch(fail),
+                  children: "\u9AD8\u4EAE"
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setNoteDialog(true), children: "\u8BB0\u7B14\u8BB0" }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
                 "button",
                 {
                   onClick: () => {
-                    setEditing(a);
-                    setNote(a.note);
+                    onAsk(selection.quote);
+                    setSelection(null);
                   },
-                  children: "\u7F16\u8F91"
+                  children: "\u95EE\u52A9\u624B"
                 }
               ),
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
                 "button",
                 {
-                  onClick: () => void call({ action: "removeAnnotation", id: a.id }).then(refreshNotes).catch(fail),
-                  children: "\u79FB\u9664"
+                  "aria-label": "\u5173\u95ED\u9009\u6BB5\u64CD\u4F5C",
+                  onClick: () => setSelection(null),
+                  children: "\xD7"
                 }
               )
-            ] })
-          ] }, a.id)),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-            "button",
-            {
-              onClick: () => void call({ action: "exportNotes", bookId: book.id }).then((markdown) => {
-                const url = URL.createObjectURL(
-                  new Blob([markdown], {
-                    type: "text/markdown;charset=utf-8"
-                  })
-                );
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = book.title + "-\u9605\u8BFB\u7B14\u8BB0.md";
-                a.click();
-                setTimeout(() => URL.revokeObjectURL(url), 1e3);
-              }).catch(fail),
-              children: "\u5BFC\u51FA\u9605\u8BFB\u7B14\u8BB0 \u2197"
-            }
-          )
-        ] })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-        "div",
-        {
-          className: "bs-page",
-          ref: scroll,
-          onScroll: track,
-          onMouseUp: selected,
-          onKeyUp: selected,
-          style: { fontSize: font },
-          children: [
-            target.revision && target.revision !== book.revision ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "bs-error", children: "\u5F15\u7528\u5BF9\u5E94\u6B64\u524D\u7248\u672C\uFF0C\u5F53\u524D\u5C55\u793A\u6700\u65B0\u6B63\u6587\u3002" }) : null,
-            loading ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "bs-muted", children: "\u6B63\u5728\u6253\u5F00\u7AE0\u8282\u2026" }) : chapter && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bs-page-heading", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("small", { children: [
-                  book.author,
-                  " \xB7 ",
-                  book.format
-                ] }),
-                chapter.blocks[0]?.text !== chapter.title && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", { children: chapter.title })
-              ] }),
-              chapter.blocks.map((block) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-                "div",
-                {
-                  "data-block": block.id,
-                  className: "bs-block" + (notes.some(
-                    (n) => n.revision === book.revision && n.chapter === chapterId && n.block === block.id
-                  ) ? " bs-highlight" : ""),
-                  children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { dangerouslySetInnerHTML: { __html: block.html } }),
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-                      "button",
-                      {
-                        className: "bs-bookmark",
-                        title: "\u6DFB\u52A0\u4E66\u7B7E",
-                        "aria-label": "\u4E3A\u8BE5\u6BB5\u6DFB\u52A0\u4E66\u7B7E",
-                        onClick: () => void annotate(
-                          "bookmark",
-                          block.id,
-                          block.text.slice(0, 180)
-                        ).catch(fail),
-                        children: "\u2691"
-                      }
-                    )
-                  ]
-                },
-                block.id
-              )),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bs-chapter-nav", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-                  "button",
-                  {
-                    disabled: chapterId === book.chapters[0].id,
-                    onClick: () => setChapterId(
-                      book.chapters[book.chapters.findIndex((c) => c.id === chapterId) - 1].id
-                    ),
-                    children: "\u2190 \u4E0A\u4E00\u7AE0"
-                  }
-                ),
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-                  "button",
-                  {
-                    disabled: chapterId === book.chapters.at(-1).id,
-                    onClick: () => setChapterId(
-                      book.chapters[book.chapters.findIndex((c) => c.id === chapterId) + 1].id
-                    ),
-                    children: "\u4E0B\u4E00\u7AE0 \u2192"
-                  }
-                )
-              ] })
-            ] })
-          ]
-        }
-      )
-    ] }),
-    selection && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bs-selection-bar", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
-        selection.quote.slice(0, 50),
-        "\u2026"
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "button",
-        {
-          onClick: () => void annotate(
-            "highlight",
-            selection.block,
-            selection.quote
-          ).catch(fail),
-          children: "\u9AD8\u4EAE"
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setNoteDialog(true), children: "\u8BB0\u7B14\u8BB0" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "button",
-        {
-          onClick: () => {
-            onAsk(selection.quote);
-            setSelection(null);
-          },
-          children: "\u95EE\u52A9\u624B"
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { "aria-label": "\u5173\u95ED\u9009\u6BB5\u64CD\u4F5C", onClick: () => setSelection(null), children: "\xD7" })
-    ] }),
+            ] }),
+            lookup && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              LookupCard,
+              {
+                ctx,
+                call,
+                lookup,
+                close: closeLookup,
+                fail,
+                explain: features.contextExplain,
+                save: (text2) => annotate("highlight", lookup.block, lookup.text, text2)
+              },
+              lookup.id
+            )
+          ] })
+        ]
+      }
+    ),
     selection && noteDialog && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
       Modal,
       {
@@ -4494,20 +4923,13 @@ function Shelf({ ctx, call }) {
     const container = panel.current;
     const start = event.clientX;
     const width = container.querySelector(".bs-assistant").getBoundingClientRect().width;
-    const handle = event.currentTarget;
-    handle.setPointerCapture(event.pointerId);
-    const move = (e) => container.style.setProperty(
-      "--assistant-width",
-      `${Math.max(300, Math.min(container.clientWidth * 0.65, width + start - e.clientX))}px`
+    drag(
+      event,
+      (e) => container.style.setProperty(
+        "--assistant-width",
+        `${Math.max(300, Math.min(container.clientWidth * 0.65, width + start - e.clientX))}px`
+      )
     );
-    const end = () => {
-      handle.removeEventListener("pointermove", move);
-      handle.removeEventListener("pointerup", end);
-      handle.removeEventListener("pointercancel", end);
-    };
-    handle.addEventListener("pointermove", move);
-    handle.addEventListener("pointerup", end);
-    handle.addEventListener("pointercancel", end);
   }
   return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
     "div",
@@ -4549,6 +4971,7 @@ function Shelf({ ctx, call }) {
               selected ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
                 Reader,
                 {
+                  ctx,
                   book: selected,
                   call,
                   target,

@@ -8,7 +8,17 @@ import React, {
   memo,
 } from "react";
 import { remoteInfo } from "../rpc";
-import type { Book, Chapter, Annotation, Hit, Request } from "../types";
+import type {
+  Book,
+  Chapter,
+  Annotation,
+  Hit,
+  Request,
+  DictEntry,
+  DictStatus,
+  AssistChunk,
+  AssistRequest,
+} from "../types";
 import css from "./style.css";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
@@ -566,7 +576,448 @@ function Assistant({
     </aside>
   );
 }
+type Lookup = {
+  id: number;
+  mode: "word" | "translate";
+  text: string;
+  block: string;
+  context: string;
+};
+const tagNames: Record<string, string> = {
+  zk: "中考",
+  gk: "高考",
+  cet4: "四级",
+  cet6: "六级",
+  ky: "考研",
+  toefl: "TOEFL",
+  ielts: "IELTS",
+  gre: "GRE",
+};
+const formNames: Record<string, string> = {
+  p: "过去式",
+  d: "过去分词",
+  i: "现在分词",
+  "3": "第三人称单数",
+  r: "比较级",
+  t: "最高级",
+  s: "复数",
+};
+function isTerm(text: string) {
+  const term = text.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, "");
+  if (/\p{Script=Han}/u.test(term)) return term.length <= 6;
+  return (
+    term.length <= 60 &&
+    /^[\p{L}\p{M}][\p{L}\p{M}'’-]*(?: [\p{L}\p{M}'’-]+){0,3}$/u.test(term)
+  );
+}
+const megabytes = (n: number) => (n / 1048576).toFixed(1) + " MB";
+function useAssist(ctx: any) {
+  const [state, setState] = useState({
+    text: "",
+    running: false,
+    error: "",
+    model: "",
+    cached: false,
+  });
+  const controller = useRef<AbortController | null>(null);
+  useEffect(() => () => controller.current?.abort(), []);
+  const stop = useCallback(() => {
+    controller.current?.abort();
+    controller.current = null;
+    setState((s) => ({ ...s, running: false }));
+  }, []);
+  const start = useCallback(
+    async (input: AssistRequest) => {
+      controller.current?.abort();
+      const c = new AbortController();
+      controller.current = c;
+      setState({
+        text: "",
+        running: true,
+        error: "",
+        model: "",
+        cached: false,
+      });
+      try {
+        const stream: AsyncIterable<AssistChunk> = ctx.remote.bookshelf.stream(
+          input,
+          c.signal,
+        );
+        for await (const item of stream) {
+          if (c.signal.aborted) break;
+          if (item.type === "delta")
+            setState((s) => ({ ...s, text: s.text + item.text }));
+          else if (item.type === "done")
+            setState((s) => ({ ...s, model: item.model, cached: item.cached }));
+          else setState((s) => ({ ...s, error: item.message }));
+        }
+      } catch (e) {
+        if (!c.signal.aborted)
+          setState((s) => ({
+            ...s,
+            error: (e as Error)?.message || String(e),
+          }));
+      } finally {
+        if (controller.current === c) {
+          controller.current = null;
+          setState((s) => ({ ...s, running: false }));
+        }
+      }
+    },
+    [ctx],
+  );
+  return { ...state, start, stop };
+}
+function DictionarySetup({
+  call,
+  onReady,
+}: {
+  call: Call;
+  onReady: () => void;
+}) {
+  const [status, setStatus] = useState<DictStatus | null>(null),
+    [file, setFile] = useState(""),
+    [error, setError] = useState("");
+  const running = !!status?.job.running;
+  useEffect(() => {
+    void call({ action: "dictionaryStatus" })
+      .then(setStatus)
+      .catch((e) => setError(e.message));
+  }, [call]);
+  useEffect(() => {
+    if (!running) return;
+    const timer = setInterval(
+      () =>
+        void call({ action: "dictionaryStatus" })
+          .then((next: DictStatus) => {
+            setStatus(next);
+            if (!next.job.running && next.installed && !next.job.error)
+              onReady();
+          })
+          .catch((e) => setError(e.message)),
+      800,
+    );
+    return () => clearInterval(timer);
+  }, [running, call, onReady]);
+  const run = (input: Request) => {
+    setError("");
+    void call(input)
+      .then(setStatus)
+      .catch((e) => setError(e.message));
+  };
+  const job = status?.job;
+  return (
+    <div className="bs-dict-setup">
+      <p>
+        离线词典尚未安装。安装开源英汉词典 ECDICT（MIT 协议，约 77
+        万词条）后，查词即时显示音标、释义与词形变化，无需联网。
+      </p>
+      {running ? (
+        <p className="bs-muted" role="status">
+          {job!.phase === "download"
+            ? `正在下载 ${megabytes(job!.received)}${job!.total ? ` / ${megabytes(job!.total)}` : ""}`
+            : `正在建立索引 · 已处理 ${job!.received.toLocaleString()} 条`}
+        </p>
+      ) : (
+        <>
+          <button
+            className="bs-primary"
+            disabled={!status}
+            onClick={() => run({ action: "dictionaryInstall" })}
+          >
+            下载 ECDICT（约 63 MB）
+          </button>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              run({ action: "dictionaryImport", path: file.trim() });
+            }}
+          >
+            <input
+              aria-label="本地 ecdict.csv 的绝对路径"
+              placeholder="或填写已下载的 ecdict.csv 绝对路径"
+              value={file}
+              onChange={(e) => setFile(e.target.value)}
+            />
+            <button disabled={!file.trim()}>导入</button>
+          </form>
+        </>
+      )}
+      {(error || job?.error) && (
+        <p className="bs-error" role="alert">
+          {error || job?.error}
+        </p>
+      )}
+    </div>
+  );
+}
+function DictEntryView({ entry }: { entry: DictEntry }) {
+  const via = entry.via?.types.map((t) => formNames[t]).filter(Boolean);
+  return (
+    <article className="bs-dict-entry">
+      {entry.via && (
+        <p className="bs-dict-via">
+          {entry.via.word} 是 {entry.word} 的{via?.join("、") || "变化形式"}
+        </p>
+      )}
+      <h4>
+        {entry.word}
+        {entry.phonetic && (
+          <span className="bs-phonetic">/{entry.phonetic}/</span>
+        )}
+      </h4>
+      {(entry.collins > 0 || entry.oxford || entry.tags.length > 0) && (
+        <div className="bs-dict-tags">
+          {entry.collins > 0 && (
+            <span title="柯林斯星级">{"★".repeat(entry.collins)}</span>
+          )}
+          {entry.oxford && <span>牛津 3000</span>}
+          {entry.tags.map((t) => (
+            <span key={t}>{tagNames[t] || t}</span>
+          ))}
+        </div>
+      )}
+      <ul>
+        {entry.translation.map((line, i) => (
+          <li key={i}>{line}</li>
+        ))}
+      </ul>
+      {entry.forms.length > 0 && (
+        <p className="bs-dict-forms">
+          {entry.forms.map((f) => `${formNames[f.type]} ${f.word}`).join(" · ")}
+        </p>
+      )}
+      {entry.definition.length > 0 && (
+        <details>
+          <summary>英文释义</summary>
+          <ul>
+            {entry.definition.map((line, i) => (
+              <li key={i}>{line}</li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </article>
+  );
+}
+const entryNote = (e: DictEntry) =>
+  `${e.word}${e.phonetic ? ` /${e.phonetic}/` : ""}\n${e.translation.join("\n")}`;
+function drag(
+  event: React.PointerEvent,
+  move: (e: PointerEvent) => void,
+  done?: () => void,
+) {
+  const handle = event.currentTarget as HTMLElement;
+  handle.setPointerCapture(event.pointerId);
+  const end = () => {
+    handle.removeEventListener("pointermove", move);
+    handle.removeEventListener("pointerup", end);
+    handle.removeEventListener("pointercancel", end);
+    done?.();
+  };
+  handle.addEventListener("pointermove", move);
+  handle.addEventListener("pointerup", end);
+  handle.addEventListener("pointercancel", end);
+}
+function LookupCard({
+  ctx,
+  call,
+  lookup,
+  close,
+  save,
+  fail,
+  explain,
+}: {
+  ctx: any;
+  call: Call;
+  lookup: Lookup;
+  close: () => void;
+  save: (note: string) => Promise<void>;
+  fail: (e: unknown) => void;
+  explain: boolean;
+}) {
+  const assist = useAssist(ctx);
+  const card = useRef<HTMLElement>(null),
+    height = useRef(Number(localStorage.getItem("bookshelf.lookup.v1")) || 0);
+  const [result, setResult] = useState<{
+      installed: boolean;
+      entries: DictEntry[];
+    } | null>(null),
+    [error, setError] = useState(""),
+    [saved, setSaved] = useState(false);
+  const word = lookup.mode === "word";
+  const loadEntries = useCallback(
+    () =>
+      void call({ action: "lookup", query: lookup.text })
+        .then(setResult)
+        .catch((e) => setError(e.message)),
+    [call, lookup.text],
+  );
+  const translate = () =>
+    void assist.start({
+      kind: "translate",
+      text: lookup.text,
+      context: lookup.context,
+    });
+  // 每次查询都以新的 key 挂载卡片，状态不会带到下一个词。
+  useEffect(() => {
+    if (word) loadEntries();
+    else translate();
+  }, []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [close]);
+  const note = word
+    ? [
+        ...(result?.entries || []).slice(0, 2).map(entryNote),
+        assist.text && `语境释义：${assist.text}`,
+      ]
+        .filter(Boolean)
+        .join("\n\n")
+    : assist.text;
+  function resize(event: React.PointerEvent) {
+    const section = card.current!;
+    const start = event.clientY,
+      initial = section.getBoundingClientRect().height,
+      limit = section.parentElement!.clientHeight * 0.75;
+    drag(
+      event,
+      (e) => {
+        height.current = Math.round(
+          Math.max(120, Math.min(limit, initial + start - e.clientY)),
+        );
+        section.style.setProperty("--lookup-height", `${height.current}px`);
+      },
+      () => localStorage.setItem("bookshelf.lookup.v1", String(height.current)),
+    );
+  }
+  return (
+    <section
+      className="bs-lookup"
+      ref={card}
+      aria-label={word ? "查词结果" : "翻译结果"}
+      style={
+        height.current
+          ? ({
+              "--lookup-height": `${height.current}px`,
+            } as React.CSSProperties)
+          : undefined
+      }
+    >
+      <div
+        className="bs-resizer bs-lookup-resizer"
+        role="separator"
+        aria-label="拖动调整查词栏高度"
+        aria-orientation="horizontal"
+        onPointerDown={resize}
+      />
+      <header>
+        <strong>{word ? "查词" : "翻译"}</strong>
+        <span title={lookup.text}>{lookup.text}</span>
+        <button aria-label="关闭" onClick={close}>
+          ×
+        </button>
+      </header>
+      <div className="bs-lookup-body" aria-live="polite">
+        {word ? (
+          <>
+            {error ? (
+              <p className="bs-error" role="alert">
+                {error}
+              </p>
+            ) : !result ? (
+              <p className="bs-muted">正在查询…</p>
+            ) : !result.installed ? (
+              <DictionarySetup call={call} onReady={loadEntries} />
+            ) : result.entries.length === 0 ? (
+              <p className="bs-muted">
+                离线词典未收录「{lookup.text}」
+                {explain ? "，可以试试结合上下文解释。" : "。"}
+              </p>
+            ) : (
+              result.entries.map((entry, i) => (
+                <DictEntryView key={entry.word + i} entry={entry} />
+              ))
+            )}
+            {explain && (
+              <div className="bs-context-explain">
+                {assist.text || assist.running || assist.error ? (
+                  <>
+                    <h4>语境释义</h4>
+                    {assist.text ? (
+                      <RichText text={assist.text} open={() => {}} />
+                    ) : (
+                      assist.running && (
+                        <p className="bs-muted">正在结合上下文解释…</p>
+                      )
+                    )}
+                  </>
+                ) : (
+                  <button
+                    onClick={() =>
+                      void assist.start({
+                        kind: "explain",
+                        text: lookup.text,
+                        context: lookup.context,
+                      })
+                    }
+                  >
+                    结合上下文解释 ✦
+                  </button>
+                )}
+              </div>
+            )}
+          </>
+        ) : assist.text ? (
+          <p className="bs-translation">{assist.text}</p>
+        ) : (
+          assist.running && <p className="bs-muted">正在翻译…</p>
+        )}
+        {assist.error && (
+          <p className="bs-error" role="alert">
+            {assist.error}
+          </p>
+        )}
+      </div>
+      <footer>
+        <small>
+          {assist.model
+            ? `${assist.model}${assist.cached ? " · 来自缓存" : ""}`
+            : word
+              ? "ECDICT 离线词典"
+              : "沿用 DSH 默认模型"}
+        </small>
+        {assist.running ? (
+          <button onClick={assist.stop}>停止</button>
+        ) : (
+          !word && assist.error && <button onClick={translate}>重试</button>
+        )}
+        <button
+          disabled={!note || assist.running || saved}
+          onClick={() =>
+            void save(note)
+              .then(() => setSaved(true))
+              .catch(fail)
+          }
+        >
+          {saved ? "已存为笔记" : "存为笔记"}
+        </button>
+        <button
+          disabled={!note}
+          onClick={() => void navigator.clipboard.writeText(note).catch(fail)}
+        >
+          复制
+        </button>
+      </footer>
+    </section>
+  );
+}
 function Reader({
+  ctx,
   book,
   call,
   target,
@@ -575,6 +1026,7 @@ function Reader({
   onUpdate,
   onAsk,
 }: {
+  ctx: any;
   onAsk: (quote: string) => void;
   book: Book;
   call: Call;
@@ -592,7 +1044,9 @@ function Reader({
     [selection, setSelection] = useState<{
       block: string;
       quote: string;
+      context: string;
     } | null>(null),
+    [lookup, setLookup] = useState<Lookup | null>(null),
     [note, setNote] = useState(""),
     [editing, setEditing] = useState<Annotation | null>(null),
     [font, setFont] = useState(
@@ -605,6 +1059,8 @@ function Reader({
     [noteDialog, setNoteDialog] = useState(false);
   const jump = useRef<{ chapter: string; block: string } | null>(null);
   const scroll = useRef<HTMLDivElement>(null),
+    body = useRef<HTMLDivElement>(null),
+    tocWidth = useRef(Number(localStorage.getItem("bookshelf.toc.v1")) || 0),
     position = useRef<any>(null),
     saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null),
     request = useRef(0);
@@ -615,6 +1071,13 @@ function Reader({
         .catch(fail),
     [book.id, call],
   );
+  const closeLookup = useCallback(() => setLookup(null), []);
+  const [features, setFeatures] = useState({ contextExplain: false });
+  useEffect(() => {
+    void call({ action: "features" })
+      .then(setFeatures)
+      .catch(() => {});
+  }, [call]);
   useEffect(() => {
     void refreshNotes();
   }, [refreshNotes]);
@@ -625,6 +1088,7 @@ function Reader({
     const generation = ++request.current;
     setLoading(true);
     setSelection(null);
+    setLookup(null);
     void call({ action: "chapter", bookId: book.id, chapter: chapterId })
       .then((c) => {
         if (generation !== request.current) return;
@@ -728,6 +1192,7 @@ function Reader({
     kind: "highlight" | "bookmark",
     block: string,
     quote: string,
+    text = note,
   ) {
     await call({
       action: "annotate",
@@ -735,7 +1200,7 @@ function Reader({
       chapter: chapterId,
       block,
       quote,
-      note: kind === "highlight" ? note : "",
+      note: kind === "highlight" ? text : "",
       kind,
     });
     setSelection(null);
@@ -743,7 +1208,7 @@ function Reader({
     setNote("");
     await refreshNotes();
   }
-  function selected() {
+  function selected(e: React.MouseEvent | React.KeyboardEvent) {
     const s = window.getSelection();
     if (
       !s ||
@@ -754,11 +1219,53 @@ function Reader({
       return;
     const node =
       s.anchorNode?.parentElement?.closest<HTMLElement>("[data-block]");
-    if (node)
-      setSelection({
-        block: node.dataset.block!,
-        quote: s.toString().trim().slice(0, 4000),
-      });
+    if (!node) return;
+    const next = {
+      block: node.dataset.block!,
+      quote: s.toString().trim().slice(0, 4000),
+      context:
+        chapter?.blocks
+          .find((b) => b.id === node.dataset.block)
+          ?.text.slice(0, 2000) || "",
+    };
+    // 双击单词直接查词，其余选区先显示操作条。
+    if (e.type === "mouseup" && e.detail === 2 && isTerm(next.quote))
+      open("word", next);
+    else setSelection(next);
+  }
+  function resizeToc(event: React.PointerEvent) {
+    const container = body.current!;
+    const start = event.clientX;
+    const width = container
+      .querySelector(".bs-toc")!
+      .getBoundingClientRect().width;
+    drag(
+      event,
+      (e) => {
+        tocWidth.current = Math.round(
+          Math.max(
+            100,
+            Math.min(
+              420,
+              container.clientWidth * 0.5,
+              width + e.clientX - start,
+            ),
+          ),
+        );
+        container.style.setProperty("--toc-width", `${tocWidth.current}px`);
+      },
+      () => localStorage.setItem("bookshelf.toc.v1", String(tocWidth.current)),
+    );
+  }
+  function open(mode: Lookup["mode"], from = selection!) {
+    setLookup({
+      id: Date.now(),
+      mode,
+      text: from.quote,
+      block: from.block,
+      context: from.context,
+    });
+    setSelection(null);
   }
   return (
     <section className={"bs-reader" + (paper ? " bs-paper" : "")}>
@@ -809,7 +1316,17 @@ function Reader({
           ◐
         </button>
       </div>
-      <div className="bs-reader-body">
+      <div
+        className="bs-reader-body"
+        ref={body}
+        style={
+          tocWidth.current
+            ? ({
+                "--toc-width": `${tocWidth.current}px`,
+              } as React.CSSProperties)
+            : undefined
+        }
+      >
         <nav className="bs-toc">
           <div className="bs-tabs">
             <button
@@ -908,121 +1425,153 @@ function Reader({
           )}
         </nav>
         <div
-          className="bs-page"
-          ref={scroll}
-          onScroll={track}
-          onMouseUp={selected}
-          onKeyUp={selected}
-          style={{ fontSize: font }}
-        >
-          {target.revision && target.revision !== book.revision ? (
-            <p className="bs-error">引用对应此前版本，当前展示最新正文。</p>
-          ) : null}
-          {loading ? (
-            <p className="bs-muted">正在打开章节…</p>
-          ) : (
-            chapter && (
-              <>
-                <div className="bs-page-heading">
-                  <small>
-                    {book.author} · {book.format}
-                  </small>
-                  {chapter.blocks[0]?.text !== chapter.title && (
-                    <h1>{chapter.title}</h1>
-                  )}
-                </div>
-                {chapter.blocks.map((block) => (
-                  <div
-                    key={block.id}
-                    data-block={block.id}
-                    className={
-                      "bs-block" +
-                      (notes.some(
-                        (n) =>
-                          n.revision === book.revision &&
-                          n.chapter === chapterId &&
-                          n.block === block.id,
-                      )
-                        ? " bs-highlight"
-                        : "")
-                    }
-                  >
-                    <div dangerouslySetInnerHTML={{ __html: block.html }} />
-                    <button
-                      className="bs-bookmark"
-                      title="添加书签"
-                      aria-label="为该段添加书签"
-                      onClick={() =>
-                        void annotate(
-                          "bookmark",
-                          block.id,
-                          block.text.slice(0, 180),
-                        ).catch(fail)
+          className="bs-resizer bs-toc-resizer"
+          role="separator"
+          aria-label="拖动调整目录宽度"
+          aria-orientation="vertical"
+          onPointerDown={resizeToc}
+        />
+        <div className="bs-page-column">
+          <div
+            className="bs-page"
+            ref={scroll}
+            onScroll={track}
+            onMouseUp={selected}
+            onKeyUp={selected}
+            style={{ fontSize: font }}
+          >
+            {target.revision && target.revision !== book.revision ? (
+              <p className="bs-error">引用对应此前版本，当前展示最新正文。</p>
+            ) : null}
+            {loading ? (
+              <p className="bs-muted">正在打开章节…</p>
+            ) : (
+              chapter && (
+                <>
+                  <div className="bs-page-heading">
+                    <small>
+                      {book.author} · {book.format}
+                    </small>
+                    {chapter.blocks[0]?.text !== chapter.title && (
+                      <h1>{chapter.title}</h1>
+                    )}
+                  </div>
+                  {chapter.blocks.map((block) => (
+                    <div
+                      key={block.id}
+                      data-block={block.id}
+                      className={
+                        "bs-block" +
+                        (notes.some(
+                          (n) =>
+                            n.revision === book.revision &&
+                            n.chapter === chapterId &&
+                            n.block === block.id,
+                        )
+                          ? " bs-highlight"
+                          : "")
                       }
                     >
-                      ⚑
+                      <div dangerouslySetInnerHTML={{ __html: block.html }} />
+                      <button
+                        className="bs-bookmark"
+                        title="添加书签"
+                        aria-label="为该段添加书签"
+                        onClick={() =>
+                          void annotate(
+                            "bookmark",
+                            block.id,
+                            block.text.slice(0, 180),
+                          ).catch(fail)
+                        }
+                      >
+                        ⚑
+                      </button>
+                    </div>
+                  ))}
+                  <div className="bs-chapter-nav">
+                    <button
+                      disabled={chapterId === book.chapters[0].id}
+                      onClick={() =>
+                        setChapterId(
+                          book.chapters[
+                            book.chapters.findIndex((c) => c.id === chapterId) -
+                              1
+                          ].id,
+                        )
+                      }
+                    >
+                      ← 上一章
+                    </button>
+                    <button
+                      disabled={chapterId === book.chapters.at(-1)!.id}
+                      onClick={() =>
+                        setChapterId(
+                          book.chapters[
+                            book.chapters.findIndex((c) => c.id === chapterId) +
+                              1
+                          ].id,
+                        )
+                      }
+                    >
+                      下一章 →
                     </button>
                   </div>
-                ))}
-                <div className="bs-chapter-nav">
-                  <button
-                    disabled={chapterId === book.chapters[0].id}
-                    onClick={() =>
-                      setChapterId(
-                        book.chapters[
-                          book.chapters.findIndex((c) => c.id === chapterId) - 1
-                        ].id,
-                      )
-                    }
-                  >
-                    ← 上一章
-                  </button>
-                  <button
-                    disabled={chapterId === book.chapters.at(-1)!.id}
-                    onClick={() =>
-                      setChapterId(
-                        book.chapters[
-                          book.chapters.findIndex((c) => c.id === chapterId) + 1
-                        ].id,
-                      )
-                    }
-                  >
-                    下一章 →
-                  </button>
-                </div>
-              </>
-            )
+                </>
+              )
+            )}
+          </div>
+          {selection && (
+            <div className="bs-selection-bar">
+              <span>{selection.quote}</span>
+              {isTerm(selection.quote) && (
+                <button onClick={() => open("word")}>查词</button>
+              )}
+              <button onClick={() => open("translate")}>翻译</button>
+              <button
+                onClick={() =>
+                  void annotate(
+                    "highlight",
+                    selection.block,
+                    selection.quote,
+                  ).catch(fail)
+                }
+              >
+                高亮
+              </button>
+              <button onClick={() => setNoteDialog(true)}>记笔记</button>
+              <button
+                onClick={() => {
+                  onAsk(selection.quote);
+                  setSelection(null);
+                }}
+              >
+                问助手
+              </button>
+              <button
+                aria-label="关闭选段操作"
+                onClick={() => setSelection(null)}
+              >
+                ×
+              </button>
+            </div>
+          )}
+          {lookup && (
+            <LookupCard
+              key={lookup.id}
+              ctx={ctx}
+              call={call}
+              lookup={lookup}
+              close={closeLookup}
+              fail={fail}
+              explain={features.contextExplain}
+              save={(text) =>
+                annotate("highlight", lookup.block, lookup.text, text)
+              }
+            />
           )}
         </div>
       </div>
-      {selection && (
-        <div className="bs-selection-bar">
-          <span>{selection.quote.slice(0, 50)}…</span>
-          <button
-            onClick={() =>
-              void annotate(
-                "highlight",
-                selection.block,
-                selection.quote,
-              ).catch(fail)
-            }
-          >
-            高亮
-          </button>
-          <button onClick={() => setNoteDialog(true)}>记笔记</button>
-          <button
-            onClick={() => {
-              onAsk(selection.quote);
-              setSelection(null);
-            }}
-          >
-            问助手
-          </button>
-          <button aria-label="关闭选段操作" onClick={() => setSelection(null)}>
-            ×
-          </button>
-        </div>
-      )}
       {selection && noteDialog && (
         <Modal
           title="记录这段阅读"
@@ -1237,21 +1786,12 @@ function Shelf({ ctx, call }: { ctx: any; call: Call }) {
     const width = container
       .querySelector(".bs-assistant")!
       .getBoundingClientRect().width;
-    const handle = event.currentTarget as HTMLElement;
-    handle.setPointerCapture(event.pointerId);
-    const move = (e: PointerEvent) =>
+    drag(event, (e) =>
       container.style.setProperty(
         "--assistant-width",
         `${Math.max(300, Math.min(container.clientWidth * 0.65, width + start - e.clientX))}px`,
-      );
-    const end = () => {
-      handle.removeEventListener("pointermove", move);
-      handle.removeEventListener("pointerup", end);
-      handle.removeEventListener("pointercancel", end);
-    };
-    handle.addEventListener("pointermove", move);
-    handle.addEventListener("pointerup", end);
-    handle.addEventListener("pointercancel", end);
+      ),
+    );
   }
   return (
     <div
@@ -1290,6 +1830,7 @@ function Shelf({ ctx, call }: { ctx: any; call: Call }) {
       >
         {selected ? (
           <Reader
+            ctx={ctx}
             key={selected.id}
             book={selected}
             call={call}

@@ -511,6 +511,20 @@
 .bs-resizer:hover {
   background: var(--bs-accent);
 }
+.bs-toc-resizer {
+  flex-basis: 5px;
+  margin-right: -4px;
+  position: relative;
+  z-index: 1;
+}
+.bs-lookup-resizer {
+  cursor: row-resize;
+  border-left: 0;
+  border-top: 1px solid var(--bs-line);
+  margin-bottom: -4px;
+  position: relative;
+  z-index: 1;
+}
 .bs-notice {
   padding: 10px 22px;
   background: var(--bs-panel);
@@ -591,14 +605,13 @@
   padding: 0 8px;
 }
 .bs-reader-body {
+  --toc-width: 158px;
   flex: 1;
   min-height: 0;
   display: flex;
 }
 .bs-toc {
-  flex: 0 0 158px;
-  width: 158px;
-  border-right: 1px solid var(--bs-line);
+  flex: 0 0 min(var(--toc-width), 50%);
   padding: 12px 9px;
   overflow: auto;
 }
@@ -626,9 +639,16 @@
   background: var(--bs-panel);
   color: var(--bs-accent);
 }
+.bs-page-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
 .bs-page {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   overflow: auto;
   padding: 35px clamp(25px, 4vw, 70px) 70px;
   scrollbar-gutter: stable;
@@ -873,9 +893,8 @@
     gap: 22px 18px;
     grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   }
-  .bs-toc {
-    flex-basis: 120px;
-    width: 120px;
+  .bs-reader-body {
+    --toc-width: 120px;
   }
   .bs-page {
     padding: 25px 27px 50px;
@@ -915,10 +934,15 @@
   .bs-library h1 {
     font-size: 26px;
   }
+  .bs-reader-body {
+    --toc-width: 100px;
+  }
   .bs-toc {
-    flex-basis: 100px;
-    width: 100px;
     padding: 8px 4px;
+  }
+  .bs-reader-body .bs-toc-resizer,
+  .bs-lookup > .bs-lookup-resizer {
+    display: block;
   }
   .bs-toc .bs-tabs button {
     font-size: 10px;
@@ -961,9 +985,11 @@
 }
 .bs-selection-bar span {
   flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  max-height: 7.5em;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
   color: var(--bs-muted);
 }
 .bs-selection-bar button {
@@ -1017,4 +1043,165 @@
 .bs-message-text td {
   border: 1px solid var(--bs-line);
   padding: 5px 8px;
+}
+.bs-lookup {
+  flex: 0 0 auto;
+  height: var(--lookup-height, 240px);
+  min-height: 120px;
+  max-height: 75%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bs-panel);
+  font: 13px/1.7 system-ui;
+}
+.bs-lookup > header,
+.bs-lookup > footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px 7px 16px;
+}
+.bs-lookup > header {
+  border-bottom: 1px solid var(--bs-line);
+}
+.bs-lookup > header strong {
+  font-size: 12px;
+  color: var(--bs-accent);
+}
+.bs-lookup > header span {
+  flex: 1;
+  min-width: 0;
+  max-height: 6.4em;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  color: var(--bs-muted);
+  font:
+    15px/1.6 Georgia,
+    "Songti SC",
+    "Noto Serif CJK SC",
+    serif;
+}
+.bs-lookup > footer small {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--bs-muted);
+  font-size: 12px;
+}
+.bs-lookup > footer {
+  border-top: 1px solid var(--bs-line);
+  flex-wrap: wrap;
+}
+.bs-lookup > footer small {
+  font-size: 11px;
+}
+.bs-lookup > footer button,
+.bs-context-explain > button,
+.bs-dict-setup form button {
+  border-color: var(--bs-line);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.bs-lookup-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 16px 8px;
+}
+.bs-lookup .bs-error {
+  margin: 8px 0;
+}
+.bs-translation {
+  margin: 0 0 8px;
+  white-space: pre-wrap;
+  font-family: Georgia, "Songti SC", "Noto Serif CJK SC", serif;
+  font-size: 15px;
+  line-height: 1.85;
+}
+.bs-dict-entry {
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px dashed var(--bs-line);
+}
+.bs-dict-entry h4 {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 17px;
+  font-weight: 600;
+}
+.bs-phonetic {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--bs-muted);
+}
+.bs-dict-via {
+  margin: 0 0 4px;
+  font-size: 11px;
+  color: var(--bs-accent);
+}
+.bs-dict-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 5px 0 2px;
+}
+.bs-dict-tags span {
+  padding: 0 6px;
+  border: 1px solid var(--bs-line);
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--bs-muted);
+}
+.bs-dict-entry ul {
+  margin: 6px 0;
+  padding-left: 18px;
+}
+.bs-dict-forms {
+  margin: 4px 0;
+  font-size: 12px;
+  color: var(--bs-muted);
+}
+.bs-dict-entry summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--bs-muted);
+}
+.bs-context-explain h4 {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--bs-accent);
+}
+.bs-context-explain .bs-message-text p:last-child {
+  margin-bottom: 0;
+}
+.bs-dict-setup {
+  display: grid;
+  gap: 10px;
+  padding-bottom: 12px;
+  margin-bottom: 10px;
+  border-bottom: 1px dashed var(--bs-line);
+}
+.bs-dict-setup p {
+  margin: 0;
+}
+.bs-dict-setup > button {
+  justify-self: start;
+}
+.bs-dict-setup form {
+  display: flex;
+  gap: 6px;
+}
+.bs-dict-setup input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--bs-line);
+  border-radius: 7px;
+  background: var(--bs-bg);
 }
