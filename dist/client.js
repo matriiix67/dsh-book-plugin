@@ -1,4 +1,4 @@
-window.__ModuleLoader__.load({id:"@local/dsh-bookshelf", factory(require) { var module={exports:{}}; var exports=module.exports;
+window.__ModuleLoader__.load({id:"@matriiix67/dsh-book-plugin", factory(require) { var module={exports:{}}; var exports=module.exports;
 "use strict";
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -190,7 +190,7 @@ var ResultValue = class {
 // src/rpc.ts
 var remoteInfo = createTypertRemoteInfo(
   {
-    package: "@local/dsh-bookshelf",
+    package: "@matriiix67/dsh-book-plugin",
     methods: {
       "bookshelf/call": {
         service: "bookshelf",

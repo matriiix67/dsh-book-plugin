@@ -70,7 +70,7 @@ await Promise.all([
     external: ["react", "react/jsx-runtime", "zod"],
     loader: { ".css": "text" },
     banner: {
-      js: 'window.__ModuleLoader__.load({id:"@local/dsh-bookshelf", factory(require) { var module={exports:{}}; var exports=module.exports;',
+      js: 'window.__ModuleLoader__.load({id:"@matriiix67/dsh-book-plugin", factory(require) { var module={exports:{}}; var exports=module.exports;',
     },
     footer: { js: "return module.exports; }});" },
     sourcemap: true,

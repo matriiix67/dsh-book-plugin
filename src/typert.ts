@@ -1,6 +1,6 @@
 import { remoteInfo } from "./rpc";
 export const TYPERT = {
-  package: "@local/dsh-bookshelf",
+  package: "@matriiix67/dsh-book-plugin",
   face: "host",
   schemas: [],
   get invocations() {

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createTypertRemoteInfo } from "@deepseek-ai/dsh-typert-protocol/remote-info";
 export const remoteInfo = createTypertRemoteInfo(
   {
-    package: "@local/dsh-bookshelf",
+    package: "@matriiix67/dsh-book-plugin",
     methods: {
       "bookshelf/call": {
         service: "bookshelf",

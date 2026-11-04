@@ -44,6 +44,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
           cat > notes.md <<EOF
           ## 安装
 
@@ -53,7 +54,7 @@ jobs:
           github:${GITHUB_REPOSITORY}#${GITHUB_REF_NAME}
           \`\`\`
 
-          无法访问 GitHub 时，可以先下载下方的 \`dsh-book-plugin-${GITHUB_REF_NAME#v}.tgz\`，再在同一对话框中填入它的绝对路径。
+          也可以填入 npm 包名 \`${PACKAGE_NAME}\` 安装最新版本。无法访问 GitHub 和 npm 时，可以先下载下方的 \`dsh-book-plugin-${GITHUB_REF_NAME#v}.tgz\`，再在同一对话框中填入它的绝对路径。
 
           已安装旧版本时，先在插件页卸载「书架」，再按上面的方式安装新版本；书库与笔记保存在本机数据目录中，不受影响。
           EOF

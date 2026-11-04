@@ -55,21 +55,21 @@
 
 适用于 **DeepSeek Harness 0.2.1-rc.5** 及之后的 0.2 版本。
 
-1. 在 DSH 中打开「插件 → 添加插件」，填入：
+1. 在 DSH 中打开「插件 → 添加插件」，填入 npm 包名：
 
    ```
-   github:matriiix67/dsh-book-plugin#v0.2.0
+   @matriiix67/dsh-book-plugin
    ```
 
-   `#` 后面是版本号，最新版本见 [Releases](https://github.com/matriiix67/dsh-book-plugin/releases)。
+   也可以从 GitHub 安装指定版本，例如 `github:matriiix67/dsh-book-plugin#v0.2.1`，版本列表见 [Releases](https://github.com/matriiix67/dsh-book-plugin/releases)。
 
 2. 安装完成后点击「立即启用」，侧栏出现「书架」入口即可使用。
 
-**无法访问 GitHub**：从 [Releases](https://github.com/matriiix67/dsh-book-plugin/releases) 下载 `dsh-book-plugin-<版本号>.tgz`，在「添加插件」中填入该文件的绝对路径。
+**离线安装**：从 [Releases](https://github.com/matriiix67/dsh-book-plugin/releases) 下载 `dsh-book-plugin-<版本号>.tgz`，在「添加插件」中填入该文件的绝对路径。
 
 **从源码目录安装**：`git clone` 本仓库后，在「添加插件」中填入克隆目录的绝对路径。仓库已包含构建产物，无需另装依赖。
 
-**更新**：在插件页卸载「书架」，再按上面的方式安装新版本，书库与笔记不受影响。从源码目录安装的，执行 `git pull` 后重启 DSH 即可。
+**更新**：在插件页卸载「书架」，再按上面的方式安装新版本，然后完全退出并重新打开 DSH，书库与笔记不受影响。从源码目录安装的，执行 `git pull` 后重启 DSH 即可。0.2.0 及更早的版本包名是 `@local/dsh-bookshelf`，请先卸载再安装新包。
 
 ## 使用
 

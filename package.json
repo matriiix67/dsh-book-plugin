@@ -1,7 +1,6 @@
 {
-  "name": "@local/dsh-bookshelf",
-  "version": "0.2.0",
-  "private": true,
+  "name": "@matriiix67/dsh-book-plugin",
+  "version": "0.2.1",
   "description": "本地书架、沉浸阅读与带原文引用的 DSH 书架助手",
   "license": "MIT",
   "keywords": [
@@ -58,6 +57,9 @@
         "@deepseek-ai/dsh-api-remotes"
       ]
     }
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "engines": {
     "dsh": ">=0.2.1-rc.5 <0.3.0-0"
