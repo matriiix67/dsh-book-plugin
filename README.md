@@ -61,7 +61,7 @@
    @matriiix67/dsh-book-plugin
    ```
 
-   也可以从 GitHub 安装指定版本，例如 `github:matriiix67/dsh-book-plugin#v0.3.0`，版本列表见 [Releases](https://github.com/matriiix67/dsh-book-plugin/releases)。
+   也可以从 GitHub 安装指定版本，例如 `github:matriiix67/dsh-book-plugin#v0.3.1`，版本列表见 [Releases](https://github.com/matriiix67/dsh-book-plugin/releases)。
 
 2. 安装完成后点击「立即启用」，侧栏出现「书架」入口即可使用。
 

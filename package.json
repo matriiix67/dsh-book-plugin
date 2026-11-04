@@ -1,6 +1,6 @@
 {
   "name": "@matriiix67/dsh-book-plugin",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "本地书架、沉浸阅读与带原文引用的 DSH 书架助手",
   "license": "MIT",
   "keywords": [
