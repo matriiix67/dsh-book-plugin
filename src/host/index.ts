@@ -53,7 +53,10 @@ export function apply(ctx: any, config: Config) {
   const assist = new ReadingAssist(ctx, config, config.storageDir);
   const handle = async (input: Request) =>
     input.action === "features"
-      ? { contextExplain: config.contextExplain }
+      ? {
+          contextExplain: config.contextExplain,
+          targetLanguage: config.targetLanguage || "简体中文",
+        }
       : dictionaryActions.has(input.action)
         ? dictionary.call(input)
         : library.call(input);

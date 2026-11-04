@@ -298,3 +298,25 @@ test("reading assist reports model failures, missing services and cancellation",
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("Chinese selections skip translation only when translating into Chinese", async () => {
+  const { isChinese, isChineseTarget } = await import("../src/text");
+  for (const text of [
+    "慢慢读",
+    "原文已是目标语言。",
+    "我喜欢 Python",
+    "這是繁體中文",
+  ])
+    assert.equal(isChinese(text), true, text);
+  for (const text of [
+    "The meaning often reshapes the whole paragraph.",
+    "stay with a sentence until it opens up 这句话",
+    "日本語のテキスト",
+    "123 —— ！",
+  ])
+    assert.equal(isChinese(text), false, text);
+  for (const language of ["简体中文", "繁體中文", "Chinese", "zh-CN"])
+    assert.equal(isChineseTarget(language), true, language);
+  for (const language of ["English", "日本語"])
+    assert.equal(isChineseTarget(language), false, language);
+});

@@ -3533,7 +3533,10 @@ function apply(ctx, config) {
   const library = new BookshelfLibrary(config.storageDir);
   const dictionary = new Dictionary(config.storageDir, config.dictionaryUrl);
   const assist = new ReadingAssist(ctx, config, config.storageDir);
-  const handle = async (input) => input.action === "features" ? { contextExplain: config.contextExplain } : dictionaryActions.has(input.action) ? dictionary.call(input) : library.call(input);
+  const handle = async (input) => input.action === "features" ? {
+    contextExplain: config.contextExplain,
+    targetLanguage: config.targetLanguage || "\u7B80\u4F53\u4E2D\u6587"
+  } : dictionaryActions.has(input.action) ? dictionary.call(input) : library.call(input);
   class BooksService extends (_a = TypertRemoteService, _call_dec = [Remote], _stream_dec = [Remote({ mode: "stream" })], _a) {
     constructor(owner) {
       super(owner, "bookshelf");

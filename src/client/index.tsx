@@ -8,7 +8,7 @@ import React, {
   memo,
 } from "react";
 import { remoteInfo } from "../rpc";
-import { isTerm } from "../text";
+import { isChinese, isChineseTarget, isTerm } from "../text";
 import type {
   Book,
   Chapter,
@@ -1332,7 +1332,15 @@ function Reader({
     [book.id, call],
   );
   const closeLookup = useCallback(() => setLookup(null), []);
-  const [features, setFeatures] = useState({ contextExplain: false });
+  const [features, setFeatures] = useState<{
+    contextExplain: boolean;
+    targetLanguage?: string;
+  }>({ contextExplain: false });
+  // 译成中文时，选中的中文不必再翻译。
+  const translatable = (text: string) =>
+    !(
+      isChineseTarget(features.targetLanguage || "简体中文") && isChinese(text)
+    );
   useEffect(() => {
     void call({ action: "features" })
       .then(setFeatures)
@@ -1879,7 +1887,9 @@ function Reader({
               {isTerm(selection.quote) && (
                 <button onClick={() => open("word")}>查词</button>
               )}
-              <button onClick={() => open("translate")}>翻译</button>
+              {translatable(selection.quote) && (
+                <button onClick={() => open("translate")}>翻译</button>
+              )}
               <button
                 onClick={() =>
                   void annotate(
