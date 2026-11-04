@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, writeFile, rm, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import http from "node:http";
 import { zipSync, strToU8 } from "fflate";
 import { parseBook } from "../src/host/parser";
 // Exercise the shipped worker and storage artifact, including restart durability.
@@ -37,6 +38,105 @@ test("long Markdown becomes bounded chapters and preserves Unicode", () => {
   assert.equal(book.title, "测试");
   assert.ok(book.chapters.length >= 3);
   assert.ok(book.chapters.every((c) => c.blocks.length <= 180));
+});
+test("single-page HTML keeps the article, resolves links and decodes GBK", () => {
+  const page = `<!doctype html><html lang="en"><head><title>Slow reading - Example</title>
+<meta property="og:title" content="Slow reading"><meta name="author" content="Ann Lee">
+<base href="https://example.com/posts/slow.html"></head><body class="has-sidebar">
+<nav>Home About</nav><div class="sidebar">Popular posts</div>
+<article><header><h1>Slow reading</h1></header>
+<p>${"Reading slowly helps. ".repeat(12)}<a href="../notes.html">notes</a></p>
+<script>track()</script><p>Second paragraph.</p>
+<div class="share-bar">Share this</div></article>
+<footer>Copyright</footer></body></html>`;
+  const book = parseBook(strToU8(page), "slow.html");
+  assert.equal(book.title, "Slow reading");
+  assert.equal(book.author, "Ann Lee");
+  assert.equal(book.language, "en");
+  const text = book.chapters
+    .flatMap((c) => c.blocks.map((b) => b.text))
+    .join("\n");
+  assert.match(text, /Second paragraph/);
+  assert.doesNotMatch(
+    text,
+    /Home About|Popular posts|Share this|Copyright|track/,
+  );
+  assert.match(JSON.stringify(book), /https:\/\/example\.com\/notes\.html/);
+  const gbk = Buffer.concat([
+    Buffer.from('<meta charset="gbk"><p>'),
+    Buffer.from([0xd6, 0xd0, 0xce, 0xc4]),
+    Buffer.from("</p>"),
+  ]);
+  assert.equal(parseBook(gbk, "gbk.htm").chapters[0].blocks[0].text, "中文");
+  const long =
+    "<h1>Book</h1>" +
+    [1, 2, 3]
+      .map((i) => `<h2>Part ${i}</h2>` + "<p>line</p>".repeat(60))
+      .join("");
+  assert.deepEqual(
+    parseBook(strToU8(long), "long.html").chapters.map((c) => c.title),
+    ["Book", "Part 1", "Part 2", "Part 3"],
+  );
+});
+test("import web pages by link and refresh them on re-import", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "bookshelf-web-"));
+  let words = "reading notes";
+  const server = http.createServer((req, res) => {
+    if (req.url === "/post") {
+      res.writeHead(200, { "content-type": "text/html; charset=gbk" });
+      res.end(
+        Buffer.concat([
+          Buffer.from("<html><head><title>Web page</title></head><body><p>"),
+          Buffer.from([0xd6, 0xd0, 0xce, 0xc4]),
+          Buffer.from(` ${words}</p></body></html>`),
+        ]),
+      );
+    } else if (req.url === "/file") {
+      res.writeHead(200, { "content-type": "application/pdf" });
+      res.end("%PDF");
+    } else {
+      res.writeHead(404);
+      res.end();
+    }
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const base = `http://127.0.0.1:${(server.address() as any).port}`;
+  try {
+    const library = new BookshelfLibrary(path.join(root, "store"));
+    await library.ready;
+    const run = async (paths: string[]) => {
+      library.startImport(paths);
+      while (library.job.running) await new Promise((r) => setTimeout(r, 25));
+      return library.job;
+    };
+    let job = await run([
+      `${base}/post#top`,
+      `${base}/missing`,
+      `${base}/file`,
+    ]);
+    assert.equal(job.imported, 1);
+    assert.deepEqual(
+      job.errors.map((e: string) => e.split("：").pop()),
+      ["网页返回 404", "链接不是网页"],
+    );
+    const [book] = library.state.books;
+    assert.equal(book.format, "HTML");
+    assert.equal(book.source, `${base}/post`);
+    assert.equal(book.title, "Web page");
+    assert.equal((await library.search("中文 notes")).length, 1);
+    job = await run([`${base}/post`]);
+    assert.equal(job.skipped, 1);
+    words = "updated notes";
+    job = await run([`${base}/post`]);
+    assert.equal(job.imported, 1);
+    assert.equal(library.state.books.length, 1);
+    assert.notEqual(library.state.books[0].revision, book.revision);
+    assert.equal((await library.search("updated")).length, 1);
+    await library.dispose();
+  } finally {
+    server.close();
+    await rm(root, { recursive: true, force: true });
+  }
 });
 test("import → duplicate scan → search → annotation → persisted restart", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "bookshelf-test-"));

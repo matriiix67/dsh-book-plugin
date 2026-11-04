@@ -22,7 +22,7 @@
 
 <p align="center">
   <img alt="DSH 0.2.1-rc.5" src="https://img.shields.io/badge/DSH-0.2.1--rc.5-30584e?style=flat-square">
-  <img alt="格式 EPUB · Markdown · TXT" src="https://img.shields.io/badge/%E6%A0%BC%E5%BC%8F-EPUB%20%C2%B7%20Markdown%20%C2%B7%20TXT-30584e?style=flat-square">
+  <img alt="格式 EPUB · Markdown · TXT · 网页" src="https://img.shields.io/badge/%E6%A0%BC%E5%BC%8F-EPUB%20%C2%B7%20Markdown%20%C2%B7%20TXT%20%C2%B7%20%E7%BD%91%E9%A1%B5-30584e?style=flat-square">
   <a href="https://github.com/matriiix67/dsh-book-plugin/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/matriiix67/dsh-book-plugin?style=flat-square&color=30584e"></a>
   <a href="./LICENSE"><img alt="License MIT" src="https://img.shields.io/badge/License-MIT-30584e?style=flat-square"></a>
 </p>
@@ -34,7 +34,7 @@
 
 ## 这是什么
 
-`dsh-book-plugin` 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）的社区插件，与 DeepSeek 无隶属关系。装上后，DSH 侧栏多出「书架」入口：导入 EPUB、Markdown 或 TXT 就能在 DSH 里读书、记笔记、查生词、翻译难句，再让书架助手基于你的藏书回答问题，每条回答都能点回原文。
+`dsh-book-plugin` 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）的社区插件，与 DeepSeek 无隶属关系。装上后，DSH 侧栏多出「书架」入口：导入 EPUB、Markdown、TXT、HTML 或网页链接，就能在 DSH 里读书、记笔记、查生词、翻译难句，再让书架助手基于你的藏书回答问题，每条回答都能点回原文。
 
 书籍和笔记只保存在本机；查词使用离线词典，不联网。
 
@@ -42,7 +42,7 @@
 
 | 功能         | 你能做什么                                                                                            |
 | ------------ | ----------------------------------------------------------------------------------------------------- |
-| **书库**     | 导入单本或整个目录，相同内容自动去重；按书名、作者、标签筛选，管理阅读状态与书籍信息。                |
+| **书库**     | 导入单本、整个目录或网页链接，相同内容自动去重；按书名、作者、标签筛选，管理阅读状态与书籍信息。      |
 | **阅读**     | 按章节阅读，可调字号和纸张背景，自动回到上次读到的位置；目录宽度可拖动调整。                          |
 | **查词**     | 双击单词即查，离线英汉词典（ECDICT，约 77 万词条）给出音标、释义、考试标签与词形变化。                |
 | **翻译**     | 选中句子或段落一键翻译，由 DSH 当前模型结合上下文生成，译文流式显示。                                 |
@@ -121,7 +121,7 @@
 ## 数据与隐私
 
 - 所有数据保存在 `storageDir` 中：书籍副本与正文在 `books/`，书目、阅读进度和笔记在 `library.json`，复习卡片在 `review.json`，词典在 `dictionary/`，翻译结果缓存在 `assist-cache.json`。备份时复制整个目录即可。
-- 书籍原件只保存在本地。查词完全离线；提问、翻译和语境释义时，选中的文字及所在段落会发送给 DSH 当前使用的模型。
+- 书籍原件只保存在本地。导入网页时会直接访问该链接下载网页，保存的副本去掉了脚本与样式。查词完全离线；提问、翻译和语境释义时，选中的文字及所在段落会发送给 DSH 当前使用的模型。
 - 相同内容的翻译直接使用本地缓存，最多保留最近 600 条。
 - 移出书架会保留原文件副本与笔记，重新导入相同内容后自动恢复关联。书籍内容更新后，旧笔记保留原摘录并提示版本差异。
 
@@ -129,6 +129,7 @@
 
 - 单本文件最大 64 MB，EPUB 解压后最大 160 MB；复杂排版会转换为便于阅读的正文。
 - 单次翻译最多 4000 字。
+- 网页导入只保存文字与链接，不保存图片；需要登录或由脚本加载正文的网页无法导入，单个网页最大 20 MB。扫描目录时不收录 HTML 文件，可以单独导入。
 - 暂不支持 PDF、DRM 书籍和有声书。
 
 ## 喜欢它？

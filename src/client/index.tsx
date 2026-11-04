@@ -2354,6 +2354,8 @@ function Shelf({ ctx, call }: { ctx: any; call: Call }) {
     [edit, setEdit] = useState<Book | null>(null),
     [showImport, setShowImport] = useState(false),
     [importPath, setImportPath] = useState(""),
+    [showWeb, setShowWeb] = useState(false),
+    [webURL, setWebURL] = useState(""),
     [uploading, setUploading] = useState(""),
     [assistant, setAssistant] = useState(true),
     [removing, setRemoving] = useState<Book | null>(null),
@@ -2417,6 +2419,31 @@ function Shelf({ ctx, call }: { ctx: any; call: Call }) {
             : b.addedAt - a.addedAt,
       );
   }, [books, query, filter, sort]);
+  // 网页导入在宿主的导入任务里进行，等任务结束后再提示结果。
+  async function importWeb(url: string) {
+    const link = new URL(url);
+    link.hash = "";
+    const existed = books.some((b) => b.source === link.href && !b.removed);
+    await call({ action: "import", paths: [url] });
+    setShowWeb(false);
+    setWebURL("");
+    notify("正在下载网页…");
+    let current = await call({ action: "job" });
+    while (current.running) {
+      await new Promise((r) => setTimeout(r, 500));
+      current = await call({ action: "job" });
+    }
+    await refresh();
+    if (current.errors.length) fail(current.errors[0]);
+    else
+      notify(
+        !current.imported
+          ? "这个网页已在书架中，内容没有变化"
+          : existed
+            ? "网页已更新为最新内容"
+            : "网页已加入书架",
+      );
+  }
   async function contentSearch() {
     const generation = ++sequence.current;
     if (!query.trim()) return;
@@ -2668,6 +2695,9 @@ function Shelf({ ctx, call }: { ctx: any; call: Call }) {
               <button title="管理扫描目录" onClick={() => setShowImport(true)}>
                 目录
               </button>
+              <button title="导入网页链接" onClick={() => setShowWeb(true)}>
+                网页
+              </button>
             </div>
             {(uploading || job?.running) && (
               <div className="bs-import-progress" role="status">
@@ -2767,7 +2797,7 @@ function Shelf({ ctx, call }: { ctx: any; call: Call }) {
                 <p>
                   {query
                     ? "书架会按书名、作者和标签筛选。"
-                    : "将 EPUB、Markdown 或 TXT 拖到这里，开始阅读。"}
+                    : "将 EPUB、Markdown、TXT 或 HTML 拖到这里，或导入网页链接，开始阅读。"}
                 </p>
                 {!query && (
                   <>
@@ -2780,6 +2810,7 @@ function Shelf({ ctx, call }: { ctx: any; call: Call }) {
                     <button onClick={() => setShowImport(true)}>
                       从本地目录扫描
                     </button>
+                    <button onClick={() => setShowWeb(true)}>导入网页</button>
                     <small>本地保存 · 自动记住阅读位置</small>
                   </>
                 )}
@@ -2814,7 +2845,7 @@ function Shelf({ ctx, call }: { ctx: any; call: Call }) {
         ref={fileInput}
         type="file"
         multiple
-        accept=".epub,.md,.markdown,.txt"
+        accept=".epub,.md,.markdown,.txt,.html,.htm"
         onChange={(e) => {
           if (e.target.files) void upload(e.target.files);
           e.target.value = "";
@@ -2853,6 +2884,43 @@ function Shelf({ ctx, call }: { ctx: any; call: Call }) {
               移出书架
             </button>
           </footer>
+        </Modal>
+      )}
+      {showWeb && (
+        <Modal title="导入网页" close={() => setShowWeb(false)}>
+          <p className="bs-muted">
+            书架会下载网页正文，保存为一本书。同一链接再次导入时更新为最新内容；网页中的图片不会保存。
+          </p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void importWeb(webURL.trim()).catch(fail);
+            }}
+          >
+            <label>
+              网页链接
+              <input
+                autoFocus
+                type="url"
+                placeholder="https://"
+                value={webURL}
+                onChange={(e) => setWebURL(e.target.value)}
+              />
+            </label>
+            <footer>
+              <button type="button" onClick={() => setShowWeb(false)}>
+                取消
+              </button>
+              <button
+                className="bs-primary"
+                disabled={
+                  !/^https?:\/\/\S+$/i.test(webURL.trim()) || job?.running
+                }
+              >
+                导入
+              </button>
+            </footer>
+          </form>
         </Modal>
       )}
       {showImport && (

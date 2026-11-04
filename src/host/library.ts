@@ -24,8 +24,20 @@ import type {
 } from "../types";
 import { ReviewDeck } from "./review";
 import { isTerm, sentenceOf } from "../text";
-const supported = new Set([".epub", ".md", ".markdown", ".txt"]);
+const supported = new Set([
+  ".epub",
+  ".md",
+  ".markdown",
+  ".txt",
+  ".html",
+  ".htm",
+]);
+// 扫描目录时不收 HTML：目录里的网页多半是附件或说明文档，单独导入即可。
+const scanned = new Set([".epub", ".md", ".markdown", ".txt"]);
 const MAX_BYTES = 64 * 1024 * 1024;
+const WEB_MAX_BYTES = 20 * 1024 * 1024;
+const BROWSER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 export class BookshelfLibrary {
   state: Library = { version: 1, books: [], roots: [], annotations: [] };
   job = {
@@ -145,7 +157,7 @@ export class BookshelfLibrary {
   private async doImportFile(file: string, name: string, source: string) {
     const info = await stat(file);
     if (!supported.has(path.extname(name).toLowerCase()))
-      throw new Error("请选择 EPUB、Markdown 或 UTF-8 TXT 文件");
+      throw new Error("请选择 EPUB、Markdown、UTF-8 TXT 或 HTML 文件");
     if (info.size > MAX_BYTES) throw new Error("单本书籍支持 64 MB 以内");
     if (info.size === 0) throw new Error("文件内容为空");
     const existing = this.state.books.find((b) => b.source === source);
@@ -237,6 +249,69 @@ export class BookshelfLibrary {
     await this.persist();
     return "imported";
   }
+  /** 下载网页按单页 HTML 导入；同一链接再次导入时更新为最新内容。 */
+  private async importURL(link: string) {
+    const url = new URL(link);
+    url.hash = "";
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        headers: {
+          "user-agent": BROWSER_AGENT,
+          accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+          "accept-language": "zh-CN,zh;q=0.9,en;q=0.8",
+        },
+        signal: AbortSignal.timeout(30000),
+      });
+    } catch (e) {
+      throw new Error(
+        (e as Error).name === "TimeoutError" ? "网页下载超时" : "无法访问网页",
+      );
+    }
+    if (!response.ok) throw new Error(`网页返回 ${response.status}`);
+    const type = response.headers.get("content-type") || "";
+    if (!/html|xml/i.test(type)) throw new Error("链接不是网页");
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for await (const chunk of response.body as AsyncIterable<Uint8Array>) {
+      size += chunk.length;
+      if (size > WEB_MAX_BYTES) throw new Error("网页超过 20 MB");
+      chunks.push(Buffer.from(chunk));
+    }
+    const bytes = Buffer.concat(chunks);
+    // 统一转成 UTF-8 保存，并记下网页地址，供解析时补全相对链接。
+    const charset =
+      type.match(/charset\s*=\s*["']?([\w-]+)/i)?.[1] ||
+      bytes
+        .subarray(0, 4096)
+        .toString("latin1")
+        .match(/<meta[^>]+charset\s*=\s*["']?\s*([\w-]+)/i)?.[1] ||
+      "utf-8";
+    let html: string;
+    try {
+      html = new TextDecoder(charset).decode(bytes);
+    } catch {
+      html = new TextDecoder().decode(bytes);
+    }
+    // 注释、脚本和样式常带时间戳或随机值，去掉后同一网页再次导入才能识别为未变化。
+    html = html.replace(
+      /<!--[\s\S]*?-->|<script\b[\s\S]*?<\/script\s*>|<style\b[\s\S]*?<\/style\s*>/gi,
+      "",
+    );
+    const href = response.url
+      .replaceAll("&", "&amp;")
+      .replaceAll('"', "&quot;");
+    const file = path.join(this.root, "uploads", randomUUID() + ".html");
+    await writeFile(
+      file,
+      `<meta charset="utf-8"><base href="${href}">\n${html}`,
+    );
+    try {
+      return await this.importFile(file, `${url.hostname}.html`, url.href);
+    } finally {
+      await rm(file, { force: true });
+    }
+  }
   private async discover(target: string, files: string[], depth = 0) {
     if (depth > 16 || files.length >= 10000) return;
     const info = await stat(target);
@@ -256,7 +331,7 @@ export class BookshelfLibrary {
       if (item.isDirectory()) await this.discover(next, files, depth + 1);
       else if (
         item.isFile() &&
-        supported.has(path.extname(item.name).toLowerCase())
+        scanned.has(path.extname(item.name).toLowerCase())
       )
         files.push(next);
     }
@@ -273,10 +348,16 @@ export class BookshelfLibrary {
       current: "正在查找书籍",
     };
     void (async () => {
-      const files: string[] = [];
+      const files: string[] = [],
+        links: string[] = [];
       for (const target of targets) {
         try {
-          if (!path.isAbsolute(target)) throw new Error("请填写本地绝对路径");
+          if (/^https?:\/\//i.test(target)) {
+            links.push(new URL(target).href);
+            continue;
+          }
+          if (!path.isAbsolute(target))
+            throw new Error("请填写本地绝对路径或网页链接");
           await this.discover(target, files);
           const info = await stat(target);
           if (info.isDirectory() && !this.state.roots.includes(target))
@@ -286,7 +367,7 @@ export class BookshelfLibrary {
         }
       }
       const unique = [...new Set(files)];
-      this.job.total = unique.length;
+      this.job.total = unique.length + links.length;
       for (const file of unique) {
         if (this.disposed) break;
         this.job.current = path.basename(file);
@@ -297,6 +378,16 @@ export class BookshelfLibrary {
           this.job.errors.push(
             `${path.basename(file)}：${(e as Error).message}`,
           );
+        }
+        this.job.done++;
+      }
+      for (const link of links) {
+        if (this.disposed) break;
+        this.job.current = new URL(link).hostname;
+        try {
+          this.job[await this.importURL(link)]++;
+        } catch (e) {
+          this.job.errors.push(`${link}：${(e as Error).message}`);
         }
         this.job.done++;
       }
@@ -575,7 +666,7 @@ export class BookshelfLibrary {
         const id = randomUUID();
         const filename = path.basename(String(input.filename));
         if (!supported.has(path.extname(filename).toLowerCase()))
-          throw new Error("请选择 EPUB、Markdown 或 TXT");
+          throw new Error("请选择 EPUB、Markdown、TXT 或 HTML");
         const file = path.join(this.root, "uploads", id);
         await writeFile(file, "");
         this.uploads.set(id, {

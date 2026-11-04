@@ -5333,7 +5333,7 @@ function Review({
   ] });
 }
 function Shelf({ ctx, call }) {
-  const [books, setBooks] = (0, import_react.useState)([]), [roots, setRoots] = (0, import_react.useState)([]), [job, setJob] = (0, import_react.useState)(null), [loading, setLoading] = (0, import_react.useState)(true), [notice, setNotice] = (0, import_react.useState)(""), [query, setQuery] = (0, import_react.useState)(""), [filter, setFilter] = (0, import_react.useState)("all"), [sort, setSort] = (0, import_react.useState)("added"), [hits, setHits] = (0, import_react.useState)(null), [searching, setSearching] = (0, import_react.useState)(false), [limit, setLimit] = (0, import_react.useState)(60), [selected, setSelected] = (0, import_react.useState)(null), [target, setTarget] = (0, import_react.useState)({}), [edit, setEdit] = (0, import_react.useState)(null), [showImport, setShowImport] = (0, import_react.useState)(false), [importPath, setImportPath] = (0, import_react.useState)(""), [uploading, setUploading] = (0, import_react.useState)(""), [assistant, setAssistant] = (0, import_react.useState)(true), [removing, setRemoving] = (0, import_react.useState)(null), [ask, setAsk] = (0, import_react.useState)(""), [reviewing, setReviewing] = (0, import_react.useState)(false), [reviewStats, setReviewStats] = (0, import_react.useState)(null);
+  const [books, setBooks] = (0, import_react.useState)([]), [roots, setRoots] = (0, import_react.useState)([]), [job, setJob] = (0, import_react.useState)(null), [loading, setLoading] = (0, import_react.useState)(true), [notice, setNotice] = (0, import_react.useState)(""), [query, setQuery] = (0, import_react.useState)(""), [filter, setFilter] = (0, import_react.useState)("all"), [sort, setSort] = (0, import_react.useState)("added"), [hits, setHits] = (0, import_react.useState)(null), [searching, setSearching] = (0, import_react.useState)(false), [limit, setLimit] = (0, import_react.useState)(60), [selected, setSelected] = (0, import_react.useState)(null), [target, setTarget] = (0, import_react.useState)({}), [edit, setEdit] = (0, import_react.useState)(null), [showImport, setShowImport] = (0, import_react.useState)(false), [importPath, setImportPath] = (0, import_react.useState)(""), [showWeb, setShowWeb] = (0, import_react.useState)(false), [webURL, setWebURL] = (0, import_react.useState)(""), [uploading, setUploading] = (0, import_react.useState)(""), [assistant, setAssistant] = (0, import_react.useState)(true), [removing, setRemoving] = (0, import_react.useState)(null), [ask, setAsk] = (0, import_react.useState)(""), [reviewing, setReviewing] = (0, import_react.useState)(false), [reviewStats, setReviewStats] = (0, import_react.useState)(null);
   const fileInput = (0, import_react.useRef)(null), sequence = (0, import_react.useRef)(0), panel = (0, import_react.useRef)(null);
   const fail = (0, import_react.useCallback)(
     (e) => setNotice(e instanceof Error ? e.message : String(e)),
@@ -5377,6 +5377,26 @@ function Shelf({ ctx, call }) {
       (a, b2) => sort === "title" ? a.title.localeCompare(b2.title, "zh-CN") : sort === "read" ? b2.lastReadAt - a.lastReadAt : b2.addedAt - a.addedAt
     );
   }, [books, query, filter, sort]);
+  async function importWeb(url) {
+    const link = new URL(url);
+    link.hash = "";
+    const existed = books.some((b2) => b2.source === link.href && !b2.removed);
+    await call({ action: "import", paths: [url] });
+    setShowWeb(false);
+    setWebURL("");
+    notify("\u6B63\u5728\u4E0B\u8F7D\u7F51\u9875\u2026");
+    let current = await call({ action: "job" });
+    while (current.running) {
+      await new Promise((r) => setTimeout(r, 500));
+      current = await call({ action: "job" });
+    }
+    await refresh();
+    if (current.errors.length) fail(current.errors[0]);
+    else
+      notify(
+        !current.imported ? "\u8FD9\u4E2A\u7F51\u9875\u5DF2\u5728\u4E66\u67B6\u4E2D\uFF0C\u5185\u5BB9\u6CA1\u6709\u53D8\u5316" : existed ? "\u7F51\u9875\u5DF2\u66F4\u65B0\u4E3A\u6700\u65B0\u5185\u5BB9" : "\u7F51\u9875\u5DF2\u52A0\u5165\u4E66\u67B6"
+      );
+  }
   async function contentSearch() {
     const generation = ++sequence.current;
     if (!query.trim()) return;
@@ -5628,7 +5648,8 @@ ${quote}`);
                       children: searching ? "\u68C0\u7D22\u4E2D\u2026" : "\u641C\u7D22\u6B63\u6587"
                     }
                   ),
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { title: "\u7BA1\u7406\u626B\u63CF\u76EE\u5F55", onClick: () => setShowImport(true), children: "\u76EE\u5F55" })
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { title: "\u7BA1\u7406\u626B\u63CF\u76EE\u5F55", onClick: () => setShowImport(true), children: "\u76EE\u5F55" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { title: "\u5BFC\u5165\u7F51\u9875\u94FE\u63A5", onClick: () => setShowWeb(true), children: "\u7F51\u9875" })
                 ] }),
                 (uploading || job?.running) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bs-import-progress", role: "status", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: uploading || `\u626B\u63CF ${job.done}/${job.total} \xB7 ${job.current}` }),
@@ -5714,7 +5735,7 @@ ${quote}`);
                 ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bs-empty", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Glyph, { size: 48 }),
                   /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: query ? "\u6362\u4E2A\u8BCD\uFF0C\u7EE7\u7EED\u5BFB\u627E" : "\u4E3A\u81EA\u5DF1\u7559\u4E00\u5EA7\u4E66\u67B6" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: query ? "\u4E66\u67B6\u4F1A\u6309\u4E66\u540D\u3001\u4F5C\u8005\u548C\u6807\u7B7E\u7B5B\u9009\u3002" : "\u5C06 EPUB\u3001Markdown \u6216 TXT \u62D6\u5230\u8FD9\u91CC\uFF0C\u5F00\u59CB\u9605\u8BFB\u3002" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: query ? "\u4E66\u67B6\u4F1A\u6309\u4E66\u540D\u3001\u4F5C\u8005\u548C\u6807\u7B7E\u7B5B\u9009\u3002" : "\u5C06 EPUB\u3001Markdown\u3001TXT \u6216 HTML \u62D6\u5230\u8FD9\u91CC\uFF0C\u6216\u5BFC\u5165\u7F51\u9875\u94FE\u63A5\uFF0C\u5F00\u59CB\u9605\u8BFB\u3002" }),
                   !query && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
                     /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
                       "button",
@@ -5725,6 +5746,7 @@ ${quote}`);
                       }
                     ),
                     /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setShowImport(true), children: "\u4ECE\u672C\u5730\u76EE\u5F55\u626B\u63CF" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setShowWeb(true), children: "\u5BFC\u5165\u7F51\u9875" }),
                     /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "\u672C\u5730\u4FDD\u5B58 \xB7 \u81EA\u52A8\u8BB0\u4F4F\u9605\u8BFB\u4F4D\u7F6E" })
                   ] })
                 ] })
@@ -5764,7 +5786,7 @@ ${quote}`);
             ref: fileInput,
             type: "file",
             multiple: true,
-            accept: ".epub,.md,.markdown,.txt",
+            accept: ".epub,.md,.markdown,.txt,.html,.htm",
             onChange: (e) => {
               if (e.target.files) void upload(e.target.files);
               e.target.value = "";
@@ -5803,6 +5825,44 @@ ${quote}`);
               }
             )
           ] })
+        ] }),
+        showWeb && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Modal, { title: "\u5BFC\u5165\u7F51\u9875", close: () => setShowWeb(false), children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "bs-muted", children: "\u4E66\u67B6\u4F1A\u4E0B\u8F7D\u7F51\u9875\u6B63\u6587\uFF0C\u4FDD\u5B58\u4E3A\u4E00\u672C\u4E66\u3002\u540C\u4E00\u94FE\u63A5\u518D\u6B21\u5BFC\u5165\u65F6\u66F4\u65B0\u4E3A\u6700\u65B0\u5185\u5BB9\uFF1B\u7F51\u9875\u4E2D\u7684\u56FE\u7247\u4E0D\u4F1A\u4FDD\u5B58\u3002" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+            "form",
+            {
+              onSubmit: (e) => {
+                e.preventDefault();
+                void importWeb(webURL.trim()).catch(fail);
+              },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { children: [
+                  "\u7F51\u9875\u94FE\u63A5",
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                    "input",
+                    {
+                      autoFocus: true,
+                      type: "url",
+                      placeholder: "https://",
+                      value: webURL,
+                      onChange: (e) => setWebURL(e.target.value)
+                    }
+                  )
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("footer", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { type: "button", onClick: () => setShowWeb(false), children: "\u53D6\u6D88" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                    "button",
+                    {
+                      className: "bs-primary",
+                      disabled: !/^https?:\/\/\S+$/i.test(webURL.trim()) || job?.running,
+                      children: "\u5BFC\u5165"
+                    }
+                  )
+                ] })
+              ]
+            }
+          )
         ] }),
         showImport && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Modal, { title: "\u626B\u63CF\u672C\u5730\u4E66\u5E93", close: () => setShowImport(false), children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "bs-muted", children: "\u6DFB\u52A0\u5B58\u653E\u4E66\u7C4D\u7684\u76EE\u5F55\u3002\u540E\u7EED\u626B\u63CF\u4F1A\u66F4\u65B0\u4E66\u7C4D\uFF0C\u5E76\u8DF3\u8FC7\u91CD\u590D\u5185\u5BB9\u3002" }),

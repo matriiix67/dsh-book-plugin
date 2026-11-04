@@ -2261,8 +2261,18 @@ function sentenceOf(text, term) {
 }
 
 // src/host/library.ts
-var supported = /* @__PURE__ */ new Set([".epub", ".md", ".markdown", ".txt"]);
+var supported = /* @__PURE__ */ new Set([
+  ".epub",
+  ".md",
+  ".markdown",
+  ".txt",
+  ".html",
+  ".htm"
+]);
+var scanned = /* @__PURE__ */ new Set([".epub", ".md", ".markdown", ".txt"]);
 var MAX_BYTES = 64 * 1024 * 1024;
+var WEB_MAX_BYTES = 20 * 1024 * 1024;
+var BROWSER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 var BookshelfLibrary = class {
   constructor(root) {
     this.root = root;
@@ -2373,7 +2383,7 @@ var BookshelfLibrary = class {
   async doImportFile(file, name, source) {
     const info = await stat(file);
     if (!supported.has(path2.extname(name).toLowerCase()))
-      throw new Error("\u8BF7\u9009\u62E9 EPUB\u3001Markdown \u6216 UTF-8 TXT \u6587\u4EF6");
+      throw new Error("\u8BF7\u9009\u62E9 EPUB\u3001Markdown\u3001UTF-8 TXT \u6216 HTML \u6587\u4EF6");
     if (info.size > MAX_BYTES) throw new Error("\u5355\u672C\u4E66\u7C4D\u652F\u6301 64 MB \u4EE5\u5185");
     if (info.size === 0) throw new Error("\u6587\u4EF6\u5185\u5BB9\u4E3A\u7A7A");
     const existing = this.state.books.find((b) => b.source === source);
@@ -2456,6 +2466,60 @@ var BookshelfLibrary = class {
     await this.persist();
     return "imported";
   }
+  /** 下载网页按单页 HTML 导入；同一链接再次导入时更新为最新内容。 */
+  async importURL(link) {
+    const url = new URL(link);
+    url.hash = "";
+    let response;
+    try {
+      response = await fetch(url, {
+        headers: {
+          "user-agent": BROWSER_AGENT,
+          accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+          "accept-language": "zh-CN,zh;q=0.9,en;q=0.8"
+        },
+        signal: AbortSignal.timeout(3e4)
+      });
+    } catch (e) {
+      throw new Error(
+        e.name === "TimeoutError" ? "\u7F51\u9875\u4E0B\u8F7D\u8D85\u65F6" : "\u65E0\u6CD5\u8BBF\u95EE\u7F51\u9875"
+      );
+    }
+    if (!response.ok) throw new Error(`\u7F51\u9875\u8FD4\u56DE ${response.status}`);
+    const type = response.headers.get("content-type") || "";
+    if (!/html|xml/i.test(type)) throw new Error("\u94FE\u63A5\u4E0D\u662F\u7F51\u9875");
+    const chunks = [];
+    let size = 0;
+    for await (const chunk of response.body) {
+      size += chunk.length;
+      if (size > WEB_MAX_BYTES) throw new Error("\u7F51\u9875\u8D85\u8FC7 20 MB");
+      chunks.push(Buffer.from(chunk));
+    }
+    const bytes = Buffer.concat(chunks);
+    const charset = type.match(/charset\s*=\s*["']?([\w-]+)/i)?.[1] || bytes.subarray(0, 4096).toString("latin1").match(/<meta[^>]+charset\s*=\s*["']?\s*([\w-]+)/i)?.[1] || "utf-8";
+    let html;
+    try {
+      html = new TextDecoder(charset).decode(bytes);
+    } catch {
+      html = new TextDecoder().decode(bytes);
+    }
+    html = html.replace(
+      /<!--[\s\S]*?-->|<script\b[\s\S]*?<\/script\s*>|<style\b[\s\S]*?<\/style\s*>/gi,
+      ""
+    );
+    const href = response.url.replaceAll("&", "&amp;").replaceAll('"', "&quot;");
+    const file = path2.join(this.root, "uploads", randomUUID2() + ".html");
+    await writeFile2(
+      file,
+      `<meta charset="utf-8"><base href="${href}">
+${html}`
+    );
+    try {
+      return await this.importFile(file, `${url.hostname}.html`, url.href);
+    } finally {
+      await rm(file, { force: true });
+    }
+  }
   async discover(target, files, depth = 0) {
     if (depth > 16 || files.length >= 1e4) return;
     const info = await stat(target);
@@ -2469,7 +2533,7 @@ var BookshelfLibrary = class {
         continue;
       const next = path2.join(target, item.name);
       if (item.isDirectory()) await this.discover(next, files, depth + 1);
-      else if (item.isFile() && supported.has(path2.extname(item.name).toLowerCase()))
+      else if (item.isFile() && scanned.has(path2.extname(item.name).toLowerCase()))
         files.push(next);
     }
   }
@@ -2485,10 +2549,15 @@ var BookshelfLibrary = class {
       current: "\u6B63\u5728\u67E5\u627E\u4E66\u7C4D"
     };
     void (async () => {
-      const files = [];
+      const files = [], links = [];
       for (const target of targets) {
         try {
-          if (!path2.isAbsolute(target)) throw new Error("\u8BF7\u586B\u5199\u672C\u5730\u7EDD\u5BF9\u8DEF\u5F84");
+          if (/^https?:\/\//i.test(target)) {
+            links.push(new URL(target).href);
+            continue;
+          }
+          if (!path2.isAbsolute(target))
+            throw new Error("\u8BF7\u586B\u5199\u672C\u5730\u7EDD\u5BF9\u8DEF\u5F84\u6216\u7F51\u9875\u94FE\u63A5");
           await this.discover(target, files);
           const info = await stat(target);
           if (info.isDirectory() && !this.state.roots.includes(target))
@@ -2498,7 +2567,7 @@ var BookshelfLibrary = class {
         }
       }
       const unique = [...new Set(files)];
-      this.job.total = unique.length;
+      this.job.total = unique.length + links.length;
       for (const file of unique) {
         if (this.disposed) break;
         this.job.current = path2.basename(file);
@@ -2509,6 +2578,16 @@ var BookshelfLibrary = class {
           this.job.errors.push(
             `${path2.basename(file)}\uFF1A${e.message}`
           );
+        }
+        this.job.done++;
+      }
+      for (const link of links) {
+        if (this.disposed) break;
+        this.job.current = new URL(link).hostname;
+        try {
+          this.job[await this.importURL(link)]++;
+        } catch (e) {
+          this.job.errors.push(`${link}\uFF1A${e.message}`);
         }
         this.job.done++;
       }
@@ -2747,7 +2826,7 @@ var BookshelfLibrary = class {
         const id = randomUUID2();
         const filename = path2.basename(String(input.filename));
         if (!supported.has(path2.extname(filename).toLowerCase()))
-          throw new Error("\u8BF7\u9009\u62E9 EPUB\u3001Markdown \u6216 TXT");
+          throw new Error("\u8BF7\u9009\u62E9 EPUB\u3001Markdown\u3001TXT \u6216 HTML");
         const file = path2.join(this.root, "uploads", id);
         await writeFile2(file, "");
         this.uploads.set(id, {
