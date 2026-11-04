@@ -61,7 +61,7 @@
    @matriiix67/dsh-book-plugin
    ```
 
-   也可以从 GitHub 安装指定版本，例如 `github:matriiix67/dsh-book-plugin#v0.2.1`，版本列表见 [Releases](https://github.com/matriiix67/dsh-book-plugin/releases)。
+   也可以从 GitHub 安装指定版本，例如 `github:matriiix67/dsh-book-plugin#v0.3.0`，版本列表见 [Releases](https://github.com/matriiix67/dsh-book-plugin/releases)。
 
 2. 安装完成后点击「立即启用」，侧栏出现「书架」入口即可使用。
 
@@ -69,11 +69,23 @@
 
 **从源码目录安装**：`git clone` 本仓库后，在「添加插件」中填入克隆目录的绝对路径。仓库已包含构建产物，无需另装依赖。
 
-**更新**：在插件页卸载「书架」，再按上面的方式安装新版本，然后完全退出并重新打开 DSH，书库与笔记不受影响。从源码目录安装的，执行 `git pull` 后重启 DSH 即可。0.2.0 及更早的版本包名是 `@local/dsh-bookshelf`，请先卸载再安装新包。
+**更新**：DSH 运行时不能卸载或替换正在使用的插件。请先完全退出 DSH，在终端执行下面的命令（macOS 路径），再重新打开 DSH；书库与笔记不受影响。
+
+```bash
+"/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh" plugin --profile desktop add @matriiix67/dsh-book-plugin@latest
+```
+
+0.2.0 及更早的版本包名是 `@local/dsh-bookshelf`，安装新包之前先用同一个程序卸载旧包：
+
+```bash
+"/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh" plugin --profile desktop remove @local/dsh-bookshelf
+```
+
+从源码目录安装的，执行 `git pull` 后重启 DSH 即可。
 
 ## 使用
 
-1. 点击「导入书籍」选择文件，或将文件拖到书架。也可以点击「目录」添加本地书籍目录，之后用「扫描书库」同步新增和更新的书。
+1. 点击「导入书籍」选择文件，或将文件拖到书架。也可以点击「目录」添加本地书籍目录，之后用「扫描书库」同步新增和更新的书。想读网上的文章，点击「网页」填入链接，书架会下载正文保存为一本书。
 2. 点击封面进入阅读。左侧切换章节，拖动目录右侧的分隔线可调整目录宽度；顶部调整字号与纸张背景。
 3. 选中正文后，下方出现选段栏，完整显示所选文字，可查词、翻译、高亮、收藏、记笔记或带着原文向助手提问。点击已有高亮可编辑笔记、收藏或删除；段落旁的旗标用于添加或移除书签。
 4. 在「笔记」中查看、编辑或导出笔记；在搜索框输入关键词后点击「搜索正文」检索全库。

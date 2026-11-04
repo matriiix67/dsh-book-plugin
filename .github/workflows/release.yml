@@ -37,8 +37,8 @@ jobs:
 
       - name: 打包
         run: |
-          npm pack
-          mv local-dsh-bookshelf-*.tgz "dsh-book-plugin-${GITHUB_REF_NAME#v}.tgz"
+          file=$(npm pack --silent | tail -n 1)
+          mv "$file" "dsh-book-plugin-${GITHUB_REF_NAME#v}.tgz"
 
       - name: 发布 Release
         env:
@@ -56,7 +56,7 @@ jobs:
 
           也可以填入 npm 包名 \`${PACKAGE_NAME}\` 安装最新版本。无法访问 GitHub 和 npm 时，可以先下载下方的 \`dsh-book-plugin-${GITHUB_REF_NAME#v}.tgz\`，再在同一对话框中填入它的绝对路径。
 
-          已安装旧版本时，先在插件页卸载「书架」，再按上面的方式安装新版本；书库与笔记保存在本机数据目录中，不受影响。
+          已安装旧版本时，DSH 运行中无法替换正在使用的插件，请按 [README 中的更新说明](https://github.com/${GITHUB_REPOSITORY}#安装) 先退出 DSH 再用命令行更新；书库与笔记保存在本机数据目录中，不受影响。
           EOF
           gh release create "$GITHUB_REF_NAME" dsh-book-plugin-*.tgz \
             --title "$GITHUB_REF_NAME" --notes-file notes.md --generate-notes
