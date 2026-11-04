@@ -42,6 +42,44 @@ export type Hit = {
   revision: string;
   url: string;
 };
+export type ReviewCard = {
+  id: string;
+  kind: "word" | "passage";
+  /** 单词卡为词条原形，摘录卡为原文。 */
+  front: string;
+  /** 释义、译文或笔记。 */
+  back: string;
+  /** 单词卡为所在原句，摘录卡为所在段落。 */
+  context: string;
+  /** 原句中实际出现的写法，复习时据此标出单词。 */
+  term: string;
+  /** 单词卡收藏的义项，如「n. 绕路」；为空表示整个词条。 */
+  sense?: string;
+  source: {
+    bookId: string;
+    revision: string;
+    chapter: string;
+    block: string;
+    title: string;
+    chapterTitle: string;
+  } | null;
+  createdAt: number;
+  due: number;
+  /** FSRS 记忆状态，时间均为毫秒时间戳。 */
+  memory: {
+    stability: number;
+    difficulty: number;
+    scheduled_days: number;
+    learning_steps: number;
+    reps: number;
+    lapses: number;
+    state: 0 | 1 | 2 | 3;
+    last_review: number | null;
+  };
+  /** 仅出现在复习队列中：依次为忘了、模糊、记得、简单后的下次到期时间。 */
+  preview?: number[];
+};
+export type ReviewStats = { total: number; due: number; next: number | null };
 export type Library = {
   version: 1;
   books: Book[];

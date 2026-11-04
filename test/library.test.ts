@@ -111,3 +111,139 @@ test("import → duplicate scan → search → annotation → persisted restart"
     await rm(root, { recursive: true, force: true });
   }
 });
+test("bookmark dedupe → collect word and passage → grade → restart → import notes", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "bookshelf-review-"));
+  try {
+    const source = path.join(root, "slow.md");
+    await writeFile(
+      source,
+      "# Slow\n\n## Words\n\nResist the urge to guess. These small detours quietly enlarge your vocabulary. Read on.",
+    );
+    const library = new BookshelfLibrary(path.join(root, "store"));
+    await library.ready;
+    library.startImport([source]);
+    while (library.job.running) await new Promise((r) => setTimeout(r, 25));
+    const book = library.state.books[0];
+    const [hit] = await library.search("detours");
+    const at = { bookId: book.id, chapter: hit.chapter, block: hit.block };
+    const first = await library.call({
+      action: "annotate",
+      kind: "bookmark",
+      ...at,
+    });
+    const again = await library.call({
+      action: "annotate",
+      kind: "bookmark",
+      ...at,
+    });
+    assert.equal(again.id, first.id);
+    assert.equal(library.state.annotations.length, 1);
+
+    const word = await library.call({
+      action: "collect",
+      kind: "word",
+      front: "detour",
+      back: "/ˈdiːtʊə/\nn. 绕路",
+      term: "detours",
+      ...at,
+    });
+    assert.equal(word.created, true);
+    assert.equal(
+      word.card.context,
+      "These small detours quietly enlarge your vocabulary.",
+    );
+    const duplicate = await library.call({
+      action: "collect",
+      kind: "word",
+      front: "Detour",
+      back: "",
+      ...at,
+    });
+    assert.equal(duplicate.created, false);
+    assert.equal(duplicate.card.back, "/ˈdiːtʊə/\nn. 绕路");
+    const passage = await library.call({
+      action: "collect",
+      kind: "passage",
+      quote: "Resist the urge to guess.",
+      ...at,
+    });
+    assert.match(passage.card.context, /enlarge your vocabulary/);
+
+    const queue = await library.call({ action: "cards", due: true });
+    assert.equal(queue.due, 2);
+    assert.equal(queue.cards.length, 2);
+    const preview = queue.cards[0].preview;
+    assert.equal(preview.length, 4);
+    assert.ok(
+      preview.every((t: number, i: number) => i === 0 || t >= preview[i - 1]),
+    );
+    const graded = await library.call({
+      action: "grade",
+      id: word.card.id,
+      rating: 4,
+    });
+    assert.ok(graded.due > Date.now() + 86400000);
+    assert.equal(graded.memory.reps, 1);
+    await assert.rejects(
+      library.call({ action: "grade", id: word.card.id, rating: 5 }),
+      /评分无效/,
+    );
+    const stats = await library.call({ action: "reviewStats" });
+    assert.equal(stats.total, 2);
+    assert.equal(stats.due, 1);
+    assert.equal(stats.next, graded.due);
+    const sense = {
+      action: "collect",
+      kind: "word",
+      front: "detour",
+      back: "/ˈdiːtʊə/\nn. 绕路",
+      sense: "n. 绕路",
+      term: "detours",
+      ...at,
+    };
+    const sensed = await library.call(sense);
+    assert.equal(sensed.created, true);
+    assert.notEqual(sensed.card.id, word.card.id);
+    assert.equal(sensed.card.sense, "n. 绕路");
+    const sensedAgain = await library.call(sense);
+    assert.equal(sensedAgain.created, false);
+    assert.equal(sensedAgain.card.id, sensed.card.id);
+
+    await library.call({
+      action: "annotate",
+      kind: "highlight",
+      ...at,
+      quote: "detours",
+      note: "detour /ˈdiːtʊə/\nn. 绕路\nvt. 绕道\n\ndetours\nn. 复数",
+    });
+    await library.call({
+      action: "annotate",
+      kind: "highlight",
+      ...at,
+      quote: "quietly enlarge your vocabulary",
+      note: "积少成多",
+    });
+    const { imported } = await library.call({ action: "importNotes" });
+    assert.equal(imported, 1);
+    await library.dispose();
+
+    const reopened = new BookshelfLibrary(path.join(root, "store"));
+    await reopened.ready;
+    const all = await reopened.call({ action: "cards" });
+    assert.equal(all.total, 4);
+    assert.equal(
+      all.cards.find((c: any) => c.id === word.card.id).memory.reps,
+      1,
+    );
+    assert.equal(
+      all.cards.find((c: any) => c.front === "quietly enlarge your vocabulary")
+        .back,
+      "积少成多",
+    );
+    await reopened.call({ action: "uncollect", id: passage.card.id });
+    assert.equal((await reopened.call({ action: "reviewStats" })).total, 3);
+    await reopened.dispose();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

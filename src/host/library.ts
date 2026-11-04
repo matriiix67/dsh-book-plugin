@@ -20,7 +20,10 @@ import type {
   Annotation,
   Request,
   Hit,
+  ReviewCard,
 } from "../types";
+import { ReviewDeck } from "./review";
+import { isTerm, sentenceOf } from "../text";
 const supported = new Set([".epub", ".md", ".markdown", ".txt"]);
 const MAX_BYTES = 64 * 1024 * 1024;
 export class BookshelfLibrary {
@@ -49,7 +52,9 @@ export class BookshelfLibrary {
     }
   >();
   readonly ready: Promise<void>;
+  readonly review: ReviewDeck;
   constructor(readonly root: string) {
+    this.review = new ReviewDeck(root);
     this.ready = this.load();
     this.ready.catch(() => {});
   }
@@ -65,6 +70,7 @@ export class BookshelfLibrary {
       if (e.code !== "ENOENT") throw e;
     }
     await mkdir(path.join(this.root, "uploads"), { recursive: true });
+    await this.review.load();
   }
   private persist() {
     const snapshot = JSON.stringify(this.state);
@@ -348,6 +354,80 @@ export class BookshelfLibrary {
     }
     return hits;
   }
+  private async blockText(source: NonNullable<ReviewCard["source"]>) {
+    const chapter = await this.chapter(source.bookId, source.chapter);
+    return chapter.blocks.find((p) => p.id === source.block)?.text || "";
+  }
+  /** 收藏到复习：单词卡附上所在原句，摘录卡附上所在段落。 */
+  private async collect(input: Request) {
+    const kind = input.kind === "word" ? "word" : "passage";
+    const front = String(input.front ?? input.quote ?? "").slice(0, 4000);
+    const term = String(input.term || "").slice(0, 200);
+    let source: ReviewCard["source"] = null,
+      context = String(input.context || "").slice(0, 2000);
+    if (input.bookId) {
+      const b = this.book(input.bookId);
+      const chapter = b.chapters.find((c) => c.id === input.chapter);
+      if (!chapter) throw new Error("章节不存在");
+      source = {
+        bookId: b.id,
+        revision: b.revision,
+        chapter: chapter.id,
+        block: String(input.block || "p0"),
+        title: b.title,
+        chapterTitle: chapter.title,
+      };
+      if (!context) {
+        const text = await this.blockText(source);
+        context = (
+          kind === "word" ? sentenceOf(text, term || front) : text
+        ).slice(0, 2000);
+      }
+    }
+    return this.review.collect({
+      kind,
+      front,
+      back: String(input.back ?? input.note ?? "").slice(0, 12000),
+      context,
+      term,
+      sense: kind === "word" ? String(input.sense || "").slice(0, 2000) : "",
+      source,
+    });
+  }
+  /** 把已有高亮笔记转成复习卡：查词笔记成为单词卡，其余成为摘录卡。 */
+  private async importNotes() {
+    let imported = 0;
+    for (const a of this.state.annotations) {
+      if (a.kind !== "highlight" || !a.note.trim()) continue;
+      const book = this.state.books.find(
+        (b) => b.id === a.bookId && !b.removed,
+      );
+      const [head, ...rest] = a.note.split("\n");
+      const entry = isTerm(a.quote)
+        ? head.match(/^([A-Za-z][A-Za-z'’ .-]*?)(?: (\/[^/]*\/))?$/)
+        : null;
+      try {
+        const { created } = await this.collect({
+          action: "collect",
+          kind: entry ? "word" : "passage",
+          front: entry ? entry[1] : a.quote,
+          back: entry
+            ? [entry[2], rest.join("\n").split("\n\n")[0]]
+                .filter(Boolean)
+                .join("\n")
+            : a.note,
+          term: entry ? a.quote : "",
+          bookId: book && book.revision === a.revision ? book.id : undefined,
+          chapter: a.chapter,
+          block: a.block,
+        });
+        if (created) imported++;
+      } catch {
+        // 出处失效的笔记跳过，不影响其他笔记导入。
+      }
+    }
+    return imported;
+  }
   async call(input: Request): Promise<any> {
     await this.ready;
     switch (input.action) {
@@ -436,6 +516,18 @@ export class BookshelfLibrary {
         const chapter = await this.chapter(b.id, input.chapter);
         if (!chapter.blocks.some((p) => p.id === input.block))
           throw new Error("段落不存在");
+        // 同一段落只保留一个书签，重复添加时返回已有书签。
+        const marked =
+          input.kind === "bookmark" &&
+          this.state.annotations.find(
+            (a) =>
+              a.kind === "bookmark" &&
+              a.bookId === b.id &&
+              a.revision === b.revision &&
+              a.chapter === chapter.id &&
+              a.block === input.block,
+          );
+        if (marked) return marked;
         const annotation: Annotation = {
           id: randomUUID(),
           bookId: b.id,
@@ -524,6 +616,22 @@ export class BookshelfLibrary {
           await rm(u.file, { force: true });
         }
       }
+      case "collect":
+        return this.collect(input);
+      case "cards":
+        return {
+          ...this.review.stats(),
+          cards: this.review.list(input.due === true),
+        };
+      case "reviewStats":
+        return this.review.stats();
+      case "grade":
+        return this.review.grade(String(input.id), Number(input.rating));
+      case "uncollect":
+        await this.review.remove(String(input.id));
+        return { ok: true };
+      case "importNotes":
+        return { imported: await this.importNotes() };
       case "exportNotes": {
         const b = this.book(input.bookId);
         return (
@@ -546,5 +654,6 @@ export class BookshelfLibrary {
     for (const worker of this.activeWorkers) await worker.terminate();
     await this.imports.catch(() => {});
     await this.writes;
+    await this.review.dispose();
   }
 }

@@ -8,6 +8,7 @@ import React, {
   memo,
 } from "react";
 import { remoteInfo } from "../rpc";
+import { isTerm } from "../text";
 import type {
   Book,
   Chapter,
@@ -18,6 +19,8 @@ import type {
   DictStatus,
   AssistChunk,
   AssistRequest,
+  ReviewCard,
+  ReviewStats,
 } from "../types";
 import css from "./style.css";
 import { marked } from "marked";
@@ -206,16 +209,54 @@ function EditBook({
     </Modal>
   );
 }
+type Cite = (url: string) => [label: string, detail: string];
+const citation = /(bookshelf:\/\/[\w-]+\/[\w-]+\/[\w-]+(?:\?revision=[\w-]+)?)/;
+// 把回答里的 bookshelf:// 原始地址换成可点击的短标签，避免长链接撑开版面。
+function linkCitations(root: DocumentFragment, cite: Cite) {
+  const link = (url: string) => {
+    const a = document.createElement("a");
+    const [label, detail] = cite(url);
+    a.href = url;
+    a.textContent = label;
+    a.title = detail;
+    return a;
+  };
+  root
+    .querySelectorAll<HTMLAnchorElement>('a[href^="bookshelf:"]')
+    .forEach((a) => {
+      if (a.textContent!.includes("bookshelf://")) {
+        [a.textContent, a.title] = cite(a.getAttribute("href")!);
+      }
+    });
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const texts: Text[] = [];
+  for (let n = walker.nextNode(); n; n = walker.nextNode())
+    if (
+      n.nodeValue!.includes("bookshelf://") &&
+      !n.parentElement?.closest("a, pre")
+    )
+      texts.push(n as Text);
+  for (const node of texts) {
+    const parts = node.data.split(citation);
+    const code = node.parentElement?.closest("code");
+    if (code && parts.length === 3 && !(parts[0] + parts[2]).trim())
+      code.replaceWith(link(parts[1]));
+    else node.replaceWith(...parts.map((p, i) => (i % 2 ? link(p) : p)));
+  }
+}
 function RichText({
   text,
   open,
+  cite,
 }: {
   text: string;
   open: (url: string) => void;
+  cite?: Cite;
 }) {
-  const html = useMemo(
-    () =>
-      DOMPurify.sanitize(marked.parse(text, { async: false }) as string, {
+  const html = useMemo(() => {
+    const clean = DOMPurify.sanitize(
+      marked.parse(text, { async: false }) as string,
+      {
         ALLOWED_TAGS: [
           "p",
           "br",
@@ -243,9 +284,14 @@ function RichText({
         ],
         ALLOWED_ATTR: ["href", "title"],
         ALLOWED_URI_REGEXP: /^(?:https?:|bookshelf:|#)/i,
-      }),
-    [text],
-  );
+      },
+    );
+    if (!cite || !clean.includes("bookshelf://")) return clean;
+    const template = document.createElement("template");
+    template.innerHTML = clean;
+    linkCitations(template.content, cite);
+    return template.innerHTML;
+  }, [text, cite]);
   return (
     <div
       className="bs-message-text"
@@ -267,6 +313,7 @@ function Assistant({
   open,
   fail,
   prompt,
+  cite,
 }: {
   ctx: any;
   call: Call;
@@ -274,6 +321,7 @@ function Assistant({
   prompt: string;
   open: (url: string) => void;
   fail: (e: unknown) => void;
+  cite: Cite;
 }) {
   const [binding, setBinding] = useState<any>(null),
     [text, setText] = useState(
@@ -489,6 +537,7 @@ function Assistant({
               "帮我梳理这本书的核心观点",
               "针对当前困惑，推荐值得读的章节",
               "找出书中相关论述并附上原文",
+              "用我收藏的生词出几道题",
             ].map((q) => (
               <button key={q} onClick={() => setText(q)}>
                 {q} ↗
@@ -497,7 +546,7 @@ function Assistant({
           </div>
         ) : (
           messages.map((m: any) => (
-            <article className={"bs-message bs-" + m.role} key={m.key}>
+            <article className={"bs-message bs-message-" + m.role} key={m.key}>
               <small>{m.role === "user" ? "你" : "书架助手"}</small>
               <RichText
                 text={
@@ -506,13 +555,14 @@ function Assistant({
                     : m.text
                 }
                 open={open}
+                cite={cite}
               />
             </article>
           ))
         )}
         {liveText && (
           <article className="bs-message">
-            <RichText text={liveText} open={open} />
+            <RichText text={liveText} open={open} cite={cite} />
           </article>
         )}
         {snapshot?.running && <p className="bs-muted">正在阅读与思考…</p>}
@@ -582,7 +632,10 @@ type Lookup = {
   text: string;
   block: string;
   context: string;
+  /** 从「收藏」打开时提示挑选义项。 */
+  collect?: boolean;
 };
+type Selected = { block: string; quote: string; context: string };
 const tagNames: Record<string, string> = {
   zk: "中考",
   gk: "高考",
@@ -602,17 +655,8 @@ const formNames: Record<string, string> = {
   t: "最高级",
   s: "复数",
 };
-function isTerm(text: string) {
-  const term = text.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, "");
-  if (/\p{Script=Han}/u.test(term)) return term.length <= 6;
-  return (
-    term.length <= 60 &&
-    /^[\p{L}\p{M}][\p{L}\p{M}'’-]*(?: [\p{L}\p{M}'’-]+){0,3}$/u.test(term)
-  );
-}
 // 所有阅读器共用一个高亮集合，各自增删本章的选区。
-const highlights =
-  typeof Highlight === "undefined" ? null : new Highlight();
+const highlights = typeof Highlight === "undefined" ? null : new Highlight();
 // 在段落中定位摘录，忽略空白差异；跨段选区只标出落在本段的部分。
 function quoteRange(root: HTMLElement, quote: string) {
   const chars: [Text, number][] = [];
@@ -782,7 +826,46 @@ function DictionarySetup({
     </div>
   );
 }
-function DictEntryView({ entry }: { entry: DictEntry }) {
+// 拆开一行释义：「n. 绕路；便道」→ 词性 n.，义项 绕路、便道。
+function splitSenses(line: string) {
+  const [, pos = "", rest] =
+    /^((?:[a-z]+\.\s*(?:&\s*)?)+|\[[^\]]+\]\s*)?([\s\S]*)$/.exec(line.trim())!;
+  return {
+    pos: pos.trim(),
+    items: rest
+      .split(/[；;]/)
+      .map((s) => s.trim())
+      .filter(Boolean),
+  };
+}
+// 选中的义项按词性归行，例如「n. 绕路」「vi. 绕道」。
+const pickedSenses = (entry: DictEntry, index: number, picked: string[]) =>
+  entry.translation.flatMap((line, l) => {
+    const { pos, items } = splitSenses(line);
+    const chosen = items.filter((_, k) =>
+      picked.includes(`${index}:${l}:${k}`),
+    );
+    return chosen.length ? [`${pos} ${chosen.join("；")}`.trim()] : [];
+  });
+// 语境释义是 Markdown，存入卡片前转为纯文本。
+const plainText = (markdown: string) =>
+  new DOMParser()
+    .parseFromString(
+      marked.parse(markdown, { async: false }) as string,
+      "text/html",
+    )
+    .body.textContent?.trim() ?? "";
+function DictEntryView({
+  entry,
+  index,
+  picked,
+  pick,
+}: {
+  entry: DictEntry;
+  index: number;
+  picked: string[];
+  pick: (key: string) => void;
+}) {
   const via = entry.via?.types.map((t) => formNames[t]).filter(Boolean);
   return (
     <article className="bs-dict-entry">
@@ -809,9 +892,32 @@ function DictEntryView({ entry }: { entry: DictEntry }) {
         </div>
       )}
       <ul>
-        {entry.translation.map((line, i) => (
-          <li key={i}>{line}</li>
-        ))}
+        {entry.translation.map((line, l) => {
+          const { pos, items } = splitSenses(line);
+          if (!items.length || inflection.test(line.trim()))
+            return <li key={l}>{line}</li>;
+          return (
+            <li key={l}>
+              {pos && <span className="bs-pos">{pos}</span>}
+              {items.map((sense, k) => {
+                const key = `${index}:${l}:${k}`;
+                return (
+                  <React.Fragment key={k}>
+                    {k > 0 && "；"}
+                    <button
+                      className="bs-sense"
+                      aria-pressed={picked.includes(key)}
+                      title="选中后只收藏选中的释义"
+                      onClick={() => pick(key)}
+                    >
+                      {sense}
+                    </button>
+                  </React.Fragment>
+                );
+              })}
+            </li>
+          );
+        })}
       </ul>
       {entry.forms.length > 0 && (
         <p className="bs-dict-forms">
@@ -833,6 +939,24 @@ function DictEntryView({ entry }: { entry: DictEntry }) {
 }
 const entryNote = (e: DictEntry) =>
   `${e.word}${e.phonetic ? ` /${e.phonetic}/` : ""}\n${e.translation.join("\n")}`;
+const entryBack = (e: DictEntry) =>
+  [e.phonetic && `/${e.phonetic}/`, ...e.translation]
+    .filter(Boolean)
+    .join("\n");
+// 第一条只是「X的复数」这类词形说明时，收藏它的原形词条。
+const inflection =
+  /^\S+的(复数|过去式|过去分词|现在分词|第三人称单数|比较级|最高级)$/;
+const headEntry = (entries: DictEntry[]): DictEntry | undefined =>
+  (entries[0]?.translation.every((t) => inflection.test(t.trim())) &&
+    entries.find((e) => e.via)) ||
+  entries[0];
+type Collect = (
+  kind: ReviewCard["kind"],
+  front: string,
+  back: string,
+  term?: string,
+  sense?: string,
+) => Promise<void>;
 function drag(
   event: React.PointerEvent,
   move: (e: PointerEvent) => void,
@@ -856,6 +980,7 @@ function LookupCard({
   lookup,
   close,
   save,
+  collect,
   fail,
   explain,
 }: {
@@ -864,6 +989,7 @@ function LookupCard({
   lookup: Lookup;
   close: () => void;
   save: (note: string) => Promise<void>;
+  collect: Collect;
   fail: (e: unknown) => void;
   explain: boolean;
 }) {
@@ -875,8 +1001,60 @@ function LookupCard({
       entries: DictEntry[];
     } | null>(null),
     [error, setError] = useState(""),
-    [saved, setSaved] = useState(false);
+    [saved, setSaved] = useState(false),
+    [collected, setCollected] = useState(false),
+    [picked, setPicked] = useState<string[]>([]);
   const word = lookup.mode === "word";
+  // 义项键为「词条:行:序号」，只能在同一词条内多选；explain 代表语境释义。
+  const entryOf = (key: string) => key.split(":")[0];
+  function pick(key: string) {
+    setCollected(false);
+    setPicked((keys) =>
+      keys.includes(key)
+        ? keys.filter((k) => k !== key)
+        : [
+            ...keys.filter(
+              (k) =>
+                key === "explain" ||
+                k === "explain" ||
+                entryOf(k) === entryOf(key),
+            ),
+            key,
+          ],
+    );
+  }
+  // 没有选义项时收藏整个词条；选了就只收藏选中的义项，每组义项各成一张卡。
+  function collectWord() {
+    const entries = result?.entries || [];
+    const explained = plainText(assist.text);
+    const keys = picked.filter((k) => k !== "explain");
+    const index = keys.length
+      ? Number(entryOf(keys[0]))
+      : entries.indexOf(headEntry(entries)!);
+    const entry = entries[index];
+    if (!picked.length)
+      return collect(
+        "word",
+        entry?.word || lookup.text,
+        [entry && entryBack(entry), explained].filter(Boolean).join("\n"),
+        lookup.text,
+      );
+    const sense = [
+      ...(entry ? pickedSenses(entry, index, keys) : []),
+      picked.includes("explain") && explained,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    return collect(
+      "word",
+      entry?.word || lookup.text,
+      [entry?.phonetic && `/${entry.phonetic}/`, sense]
+        .filter(Boolean)
+        .join("\n"),
+      lookup.text,
+      sense,
+    );
+  }
   const loadEntries = useCallback(
     () =>
       void call({ action: "lookup", query: lookup.text })
@@ -970,15 +1148,41 @@ function LookupCard({
                 {explain ? "，可以试试结合上下文解释。" : "。"}
               </p>
             ) : (
-              result.entries.map((entry, i) => (
-                <DictEntryView key={entry.word + i} entry={entry} />
-              ))
+              <>
+                {lookup.collect && (
+                  <p className="bs-muted bs-sense-hint">
+                    点选要收藏的释义，可以多选；不选则收藏整个词条。
+                  </p>
+                )}
+                {result.entries.map((entry, i) => (
+                  <DictEntryView
+                    key={entry.word + i}
+                    entry={entry}
+                    index={i}
+                    picked={picked}
+                    pick={pick}
+                  />
+                ))}
+              </>
             )}
             {explain && (
               <div className="bs-context-explain">
                 {assist.text || assist.running || assist.error ? (
                   <>
-                    <h4>语境释义</h4>
+                    <h4>
+                      语境释义
+                      {assist.text && !assist.running && (
+                        <button
+                          className="bs-sense"
+                          aria-pressed={picked.includes("explain")}
+                          onClick={() => pick("explain")}
+                        >
+                          {picked.includes("explain")
+                            ? "✓ 已选入卡片"
+                            : "选入卡片"}
+                        </button>
+                      )}
+                    </h4>
                     {assist.text ? (
                       <RichText text={assist.text} open={() => {}} />
                     ) : (
@@ -1038,6 +1242,26 @@ function LookupCard({
           {saved ? "已存为笔记" : "存为笔记"}
         </button>
         <button
+          disabled={
+            collected || assist.running || (word ? !result : !assist.text)
+          }
+          onClick={() =>
+            void (
+              word
+                ? collectWord()
+                : collect("passage", lookup.text, assist.text)
+            )
+              .then(() => setCollected(true))
+              .catch(fail)
+          }
+        >
+          {collected
+            ? "已加入复习"
+            : picked.length
+              ? `收藏 ${picked.length} 条释义`
+              : "收藏复习"}
+        </button>
+        <button
           disabled={!note}
           onClick={() => void navigator.clipboard.writeText(note).catch(fail)}
         >
@@ -1047,6 +1271,11 @@ function LookupCard({
     </section>
   );
 }
+// 正文 HTML 只在内容变化时写入：React 每次重渲染都会重设新的 __html 对象，
+// 那会清掉读者的选区，也会让高亮选区失效。
+const BlockHTML = memo(function BlockHTML({ html }: { html: string }) {
+  return <div dangerouslySetInnerHTML={{ __html: html }} />;
+});
 function Reader({
   ctx,
   book,
@@ -1056,6 +1285,7 @@ function Reader({
   fail,
   onUpdate,
   onAsk,
+  notify,
 }: {
   ctx: any;
   onAsk: (quote: string) => void;
@@ -1065,6 +1295,7 @@ function Reader({
   onBack: () => void;
   fail: (e: unknown) => void;
   onUpdate: () => void;
+  notify: (message: string) => void;
 }) {
   const [chapterId, setChapterId] = useState(
       target.chapter || book.progress.chapter || book.chapters[0].id,
@@ -1072,11 +1303,7 @@ function Reader({
     [chapter, setChapter] = useState<Chapter | null>(null),
     [notes, setNotes] = useState<Annotation[]>([]),
     [tab, setTab] = useState<"contents" | "notes">("contents"),
-    [selection, setSelection] = useState<{
-      block: string;
-      quote: string;
-      context: string;
-    } | null>(null),
+    [selection, setSelection] = useState<Selected | null>(null),
     [lookup, setLookup] = useState<Lookup | null>(null),
     [note, setNote] = useState(""),
     [editing, setEditing] = useState<Annotation | null>(null),
@@ -1094,7 +1321,9 @@ function Reader({
     tocWidth = useRef(Number(localStorage.getItem("bookshelf.toc.v1")) || 0),
     position = useRef<any>(null),
     saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null),
-    request = useRef(0);
+    request = useRef(0),
+    painted = useRef<(readonly [Range, Annotation])[]>([]);
+  const [active, setActive] = useState<Annotation | null>(null);
   const refreshNotes = useCallback(
     () =>
       call({ action: "annotations", bookId: book.id })
@@ -1116,7 +1345,7 @@ function Reader({
     const container = scroll.current;
     if (!highlights || !container || loading || !chapter) return;
     CSS.highlights.set("bs-highlight", highlights);
-    const ranges = notes.flatMap((n) => {
+    const pairs = notes.flatMap((n) => {
       const root =
         n.kind === "highlight" &&
         n.revision === book.revision &&
@@ -1125,10 +1354,14 @@ function Reader({
           `[data-block="${CSS.escape(n.block)}"] > div`,
         );
       const range = root && quoteRange(root, n.quote);
-      return range ? [range] : [];
+      return range ? [[range, n] as const] : [];
     });
-    ranges.forEach((r) => highlights.add(r));
-    return () => ranges.forEach((r) => highlights.delete(r));
+    pairs.forEach(([r]) => highlights.add(r));
+    painted.current = pairs;
+    return () => {
+      pairs.forEach(([r]) => highlights.delete(r));
+      painted.current = [];
+    };
   }, [notes, chapter, loading, book.revision]);
   useEffect(() => {
     if (target.chapter) setChapterId(target.chapter);
@@ -1138,6 +1371,7 @@ function Reader({
     setLoading(true);
     setSelection(null);
     setLookup(null);
+    setActive(null);
     void call({ action: "chapter", bookId: book.id, chapter: chapterId })
       .then((c) => {
         if (generation !== request.current) return;
@@ -1258,8 +1492,62 @@ function Reader({
     setNote("");
     await refreshNotes();
   }
+  async function collect(
+    block: string,
+    kind: ReviewCard["kind"],
+    front: string,
+    back: string,
+    term = "",
+    sense = "",
+  ) {
+    const { created } = await call({
+      action: "collect",
+      kind,
+      front,
+      back,
+      term,
+      sense,
+      bookId: book.id,
+      chapter: chapterId,
+      block,
+    });
+    notify(created ? "已加入复习" : "已在复习中，内容已更新");
+  }
+  // 单词先打开查词面板挑选义项；带笔记的单词高亮以笔记为释义；其余按摘录卡收藏。
+  async function collectQuote(from: Selected, note = "") {
+    const { block, quote } = from;
+    if (!isTerm(quote)) return collect(block, "passage", quote, note);
+    if (!note) return open("word", from, true);
+    const result = await call({ action: "lookup", query: quote }).catch(
+      () => null,
+    );
+    await collect(
+      block,
+      "word",
+      headEntry(result?.entries || [])?.word || quote.trim(),
+      note,
+      quote.trim(),
+    );
+  }
+  const blockContext = (block: string) =>
+    chapter?.blocks.find((b) => b.id === block)?.text.slice(0, 2000) || "";
   function selected(e: React.MouseEvent | React.KeyboardEvent) {
     const s = window.getSelection();
+    // 单击高亮文字时打开这条高亮的操作栏。
+    if ((!s || s.isCollapsed) && "clientX" in e) {
+      if ((e.target as HTMLElement).closest("a, button")) return;
+      const hit = painted.current.findLast(([range]) =>
+        Array.from(range.getClientRects()).some(
+          (r) =>
+            e.clientX >= r.left &&
+            e.clientX <= r.right &&
+            e.clientY >= r.top &&
+            e.clientY <= r.bottom,
+        ),
+      );
+      setActive(hit ? hit[1] : null);
+      return;
+    }
     if (
       !s ||
       s.isCollapsed ||
@@ -1267,16 +1555,14 @@ function Reader({
       !scroll.current.contains(s.focusNode)
     )
       return;
+    setActive(null);
     const node =
       s.anchorNode?.parentElement?.closest<HTMLElement>("[data-block]");
     if (!node) return;
     const next = {
       block: node.dataset.block!,
       quote: s.toString().trim().slice(0, 4000),
-      context:
-        chapter?.blocks
-          .find((b) => b.id === node.dataset.block)
-          ?.text.slice(0, 2000) || "",
+      context: blockContext(node.dataset.block!),
     };
     // 双击单词直接查词，其余选区先显示操作条。
     if (e.type === "mouseup" && e.detail === 2 && isTerm(next.quote))
@@ -1307,13 +1593,14 @@ function Reader({
       () => localStorage.setItem("bookshelf.toc.v1", String(tocWidth.current)),
     );
   }
-  function open(mode: Lookup["mode"], from = selection!) {
+  function open(mode: Lookup["mode"], from = selection!, collect = false) {
     setLookup({
       id: Date.now(),
       mode,
       text: from.quote,
       block: from.block,
       context: from.context,
+      collect,
     });
     setSelection(null);
   }
@@ -1506,40 +1793,54 @@ function Reader({
                       <h1>{chapter.title}</h1>
                     )}
                   </div>
-                  {chapter.blocks.map((block) => (
-                    <div
-                      key={block.id}
-                      data-block={block.id}
-                      className={
-                        "bs-block" +
-                        (notes.some(
-                          (n) =>
-                            n.kind === "bookmark" &&
-                            n.revision === book.revision &&
-                            n.chapter === chapterId &&
-                            n.block === block.id,
-                        )
-                          ? " bs-bookmarked"
-                          : "")
-                      }
-                    >
-                      <div dangerouslySetInnerHTML={{ __html: block.html }} />
-                      <button
-                        className="bs-bookmark"
-                        title="添加书签"
-                        aria-label="为该段添加书签"
-                        onClick={() =>
-                          void annotate(
-                            "bookmark",
-                            block.id,
-                            block.text.slice(0, 180),
-                          ).catch(fail)
+                  {chapter.blocks.map((block) => {
+                    const marks = notes.filter(
+                      (n) =>
+                        n.kind === "bookmark" &&
+                        n.revision === book.revision &&
+                        n.chapter === chapterId &&
+                        n.block === block.id,
+                    );
+                    return (
+                      <div
+                        key={block.id}
+                        data-block={block.id}
+                        className={
+                          "bs-block" + (marks.length ? " bs-bookmarked" : "")
                         }
                       >
-                        ⚑
-                      </button>
-                    </div>
-                  ))}
+                        <BlockHTML html={block.html} />
+                        <button
+                          className="bs-bookmark"
+                          title={marks.length ? "移除书签" : "添加书签"}
+                          aria-label={
+                            marks.length ? "移除该段书签" : "为该段添加书签"
+                          }
+                          aria-pressed={marks.length > 0}
+                          onClick={() =>
+                            void (
+                              marks.length
+                                ? Promise.all(
+                                    marks.map((m) =>
+                                      call({
+                                        action: "removeAnnotation",
+                                        id: m.id,
+                                      }),
+                                    ),
+                                  ).then(refreshNotes)
+                                : annotate(
+                                    "bookmark",
+                                    block.id,
+                                    block.text.slice(0, 180),
+                                  )
+                            ).catch(fail)
+                          }
+                        >
+                          ⚑
+                        </button>
+                      </div>
+                    );
+                  })}
                   <div className="bs-chapter-nav">
                     <button
                       disabled={chapterId === book.chapters[0].id}
@@ -1592,6 +1893,18 @@ function Reader({
               </button>
               <button onClick={() => setNoteDialog(true)}>记笔记</button>
               <button
+                onClick={() =>
+                  void collectQuote(selection)
+                    .then(() => {
+                      window.getSelection()?.removeAllRanges();
+                      setSelection(null);
+                    })
+                    .catch(fail)
+                }
+              >
+                收藏
+              </button>
+              <button
                 onClick={() => {
                   onAsk(selection.quote);
                   setSelection(null);
@@ -1603,6 +1916,55 @@ function Reader({
                 aria-label="关闭选段操作"
                 onClick={() => setSelection(null)}
               >
+                ×
+              </button>
+            </div>
+          )}
+          {active && !selection && (
+            <div className="bs-selection-bar bs-highlight-bar">
+              <span>
+                {active.note ? (
+                  <>
+                    <b>笔记</b>
+                    {active.note}
+                  </>
+                ) : (
+                  active.quote
+                )}
+              </span>
+              <button
+                onClick={() => {
+                  setEditing(active);
+                  setNote(active.note);
+                }}
+              >
+                {active.note ? "编辑笔记" : "写笔记"}
+              </button>
+              <button
+                onClick={() =>
+                  void collectQuote(
+                    { ...active, context: blockContext(active.block) },
+                    active.note,
+                  )
+                    .then(() => setActive(null))
+                    .catch(fail)
+                }
+              >
+                收藏复习
+              </button>
+              <button
+                onClick={() =>
+                  void call({ action: "removeAnnotation", id: active.id })
+                    .then(() => {
+                      setActive(null);
+                      return refreshNotes();
+                    })
+                    .catch(fail)
+                }
+              >
+                删除高亮
+              </button>
+              <button aria-label="关闭高亮操作" onClick={() => setActive(null)}>
                 ×
               </button>
             </div>
@@ -1619,6 +1981,7 @@ function Reader({
               save={(text) =>
                 annotate("highlight", lookup.block, lookup.text, text)
               }
+              collect={(...args) => collect(lookup.block, ...args)}
             />
           )}
         </div>
@@ -1678,6 +2041,7 @@ function Reader({
                 void call({ action: "editNote", id: editing.id, note })
                   .then(() => {
                     setEditing(null);
+                    setActive(null);
                     setNote("");
                     return refreshNotes();
                   })
@@ -1690,6 +2054,287 @@ function Reader({
         </Modal>
       )}
     </section>
+  );
+}
+function wait(ms: number) {
+  const minutes = Math.max(1, Math.round(ms / 60000));
+  if (minutes < 60) return `${minutes} 分钟`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} 小时`;
+  const days = Math.round(hours / 24);
+  if (days < 31) return `${days} 天`;
+  if (days < 365) return `${Math.round(days / 30)} 个月`;
+  return `${Math.round(days / 365)} 年`;
+}
+const sourceURL = (s: NonNullable<ReviewCard["source"]>) =>
+  `bookshelf://${s.bookId}/${s.chapter}/${s.block}?revision=${s.revision}`;
+function Marked({ text, term }: { text: string; term: string }) {
+  const at = term
+    ? text.toLocaleLowerCase().indexOf(term.toLocaleLowerCase())
+    : -1;
+  if (at < 0) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, at)}
+      <mark>{text.slice(at, at + term.length)}</mark>
+      {text.slice(at + term.length)}
+    </>
+  );
+}
+const grades = ["忘了", "模糊", "记得", "简单"];
+function Review({
+  call,
+  fail,
+  notify,
+  open,
+  onBack,
+}: {
+  call: Call;
+  fail: (e: unknown) => void;
+  notify: (message: string) => void;
+  open: (url: string) => void;
+  onBack: () => void;
+}) {
+  const [tab, setTab] = useState<"review" | "cards">("review"),
+    [queue, setQueue] = useState<ReviewCard[] | null>(null),
+    [all, setAll] = useState<ReviewCard[] | null>(null),
+    [stats, setStats] = useState<ReviewStats | null>(null),
+    [revealed, setRevealed] = useState(false),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  const failed = (e: unknown) =>
+    setError(e instanceof Error ? e.message : String(e));
+  const load = useCallback(() => {
+    setError("");
+    return call({ action: "cards", due: true })
+      .then((r) => {
+        setQueue(r.cards);
+        setStats(r);
+      })
+      .catch(failed);
+  }, [call]);
+  const loadAll = useCallback(() => {
+    setError("");
+    return call({ action: "cards" })
+      .then((r) => {
+        setAll(r.cards);
+        setStats(r);
+      })
+      .catch(failed);
+  }, [call]);
+  // 加载失败时说明原因：界面已更新而宿主仍是旧版本时，宿主不认识复习操作。
+  const pending = (text: string) => (
+    <div className="bs-empty">
+      {error ? (
+        <>
+          <p>卡片没有加载出来：{error}</p>
+          {error.includes("未知的书架操作") && (
+            <p className="bs-muted">
+              书架插件的后台还是更新前的版本，重启 DSH 后再试。
+            </p>
+          )}
+          <button onClick={() => void (tab === "review" ? load() : loadAll())}>
+            重试
+          </button>
+        </>
+      ) : (
+        text
+      )}
+    </div>
+  );
+  useEffect(() => {
+    void (tab === "review" ? load() : loadAll());
+  }, [tab, load, loadAll]);
+  const card = queue?.[0];
+  async function grade(rating: number) {
+    if (!card || busy) return;
+    setBusy(true);
+    try {
+      await call({ action: "grade", id: card.id, rating });
+      setRevealed(false);
+      await load();
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+  function importNotes() {
+    void call({ action: "importNotes" })
+      .then(({ imported }) => {
+        notify(
+          imported ? `已从笔记导入 ${imported} 张卡片` : "没有可导入的新笔记",
+        );
+        return tab === "review" ? load() : loadAll();
+      })
+      .catch(fail);
+  }
+  // 空格或回车翻面，翻面后按 1–4 评分。
+  useEffect(() => {
+    if (tab !== "review" || !card) return;
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest("input, textarea, select, [contenteditable]")) return;
+      if (!revealed && (e.key === " " || e.key === "Enter")) {
+        e.preventDefault();
+        setRevealed(true);
+      } else if (revealed && ["1", "2", "3", "4"].includes(e.key))
+        void grade(Number(e.key));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+  const now = Date.now();
+  return (
+    <main className="bs-library bs-review">
+      <div className="bs-library-heading">
+        <div>
+          <p className="bs-eyebrow">收藏复习 · 按遗忘规律安排</p>
+          <h1>复习</h1>
+          <p className="bs-muted">
+            查词或选段时点「收藏」，单词和句子会按 FSRS 算法安排复习。
+          </p>
+        </div>
+        <div className="bs-actions">
+          <button onClick={onBack}>← 书架</button>
+        </div>
+      </div>
+      <div className="bs-filter-row">
+        <div className="bs-tabs">
+          <button
+            aria-pressed={tab === "review"}
+            onClick={() => setTab("review")}
+          >
+            今日复习{stats ? ` ${stats.due}` : ""}
+          </button>
+          <button
+            aria-pressed={tab === "cards"}
+            onClick={() => setTab("cards")}
+          >
+            全部卡片{stats ? ` ${stats.total}` : ""}
+          </button>
+        </div>
+        <button onClick={importNotes}>从笔记导入</button>
+      </div>
+      {tab === "review" ? (
+        !queue ? (
+          pending("正在整理卡片…")
+        ) : card ? (
+          <article className="bs-review-card" key={card.id}>
+            <small className="bs-muted">
+              {card.kind === "word" ? "单词" : "摘录"}
+              {card.source &&
+                ` · 《${card.source.title}》${card.source.chapterTitle}`}
+            </small>
+            {card.kind === "word" ? (
+              <h2>{card.front}</h2>
+            ) : (
+              <blockquote>{card.front}</blockquote>
+            )}
+            {card.kind === "word" && card.context && (
+              <p className="bs-review-context">
+                <Marked text={card.context} term={card.term || card.front} />
+              </p>
+            )}
+            {revealed && (
+              <div className="bs-review-answer">
+                {card.back ? (
+                  <p>{card.back}</p>
+                ) : card.kind === "passage" && card.context !== card.front ? (
+                  <p className="bs-muted">
+                    <Marked text={card.context} term={card.front} />
+                  </p>
+                ) : (
+                  <p className="bs-muted">没有记录释义，回到原文看看上下文。</p>
+                )}
+                {card.source && (
+                  <button onClick={() => open(sourceURL(card.source!))}>
+                    回到原文 ↗
+                  </button>
+                )}
+              </div>
+            )}
+            <footer>
+              {revealed ? (
+                grades.map((label, i) => (
+                  <button
+                    key={label}
+                    disabled={busy}
+                    onClick={() => void grade(i + 1)}
+                  >
+                    <strong>{label}</strong>
+                    {card.preview && (
+                      <small>{wait(card.preview[i] - now)}</small>
+                    )}
+                  </button>
+                ))
+              ) : (
+                <button
+                  className="bs-primary"
+                  onClick={() => setRevealed(true)}
+                >
+                  显示答案
+                </button>
+              )}
+            </footer>
+            <p className="bs-muted bs-review-hint">
+              还剩 {queue.length} 张 ·{" "}
+              {revealed ? "按 1–4 评分" : "空格显示答案"}
+            </p>
+          </article>
+        ) : (
+          <div className="bs-empty">
+            <Glyph size={48} />
+            <h2>{stats?.total ? "今天的复习完成了" : "还没有收藏"}</h2>
+            <p>
+              {stats?.total
+                ? stats.next
+                  ? `下一张卡片 ${wait(stats.next - now)}后到期。`
+                  : "所有卡片都已安排好。"
+                : "查词时点「收藏复习」，或在选段栏点「收藏」，单词和句子会出现在这里。"}
+            </p>
+            {!stats?.total && (
+              <button onClick={importNotes}>从已有笔记导入</button>
+            )}
+          </div>
+        )
+      ) : !all ? (
+        pending("正在读取卡片…")
+      ) : all.length ? (
+        <div className="bs-review-list">
+          {all.map((c) => (
+            <article key={c.id}>
+              <div>
+                <strong>{c.front}</strong>
+                {c.back && <p>{c.back.split("\n").slice(0, 2).join("；")}</p>}
+                <small>
+                  {c.source &&
+                    `《${c.source.title}》${c.source.chapterTitle} · `}
+                  {c.due <= now ? "待复习" : `${wait(c.due - now)}后复习`} ·
+                  已复习 {c.memory.reps} 次
+                </small>
+              </div>
+              {c.source && (
+                <button onClick={() => open(sourceURL(c.source!))}>原文</button>
+              )}
+              <button
+                onClick={() =>
+                  void call({ action: "uncollect", id: c.id })
+                    .then(loadAll)
+                    .catch(fail)
+                }
+              >
+                移除
+              </button>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="bs-empty">
+          <p>还没有卡片。</p>
+        </div>
+      )}
+    </main>
   );
 }
 function Shelf({ ctx, call }: { ctx: any; call: Call }) {
@@ -1712,7 +2357,9 @@ function Shelf({ ctx, call }: { ctx: any; call: Call }) {
     [uploading, setUploading] = useState(""),
     [assistant, setAssistant] = useState(true),
     [removing, setRemoving] = useState<Book | null>(null),
-    [ask, setAsk] = useState("");
+    [ask, setAsk] = useState(""),
+    [reviewing, setReviewing] = useState(false),
+    [reviewStats, setReviewStats] = useState<ReviewStats | null>(null);
   const fileInput = useRef<HTMLInputElement>(null),
     sequence = useRef(0),
     panel = useRef<HTMLDivElement>(null);
@@ -1720,12 +2367,18 @@ function Shelf({ ctx, call }: { ctx: any; call: Call }) {
     (e: unknown) => setNotice(e instanceof Error ? e.message : String(e)),
     [],
   );
+  // 操作成功的提示几秒后自动消失，错误提示保留到手动关闭。
+  const notify = useCallback((message: string) => {
+    setNotice(message);
+    setTimeout(() => setNotice((n) => (n === message ? "" : n)), 2500);
+  }, []);
   const refresh = useCallback(async () => {
     try {
       const data = await call({ action: "list" });
       setBooks(data.books);
       setRoots(data.roots);
       setJob(data.job);
+      setReviewStats(await call({ action: "reviewStats" }));
     } catch (e) {
       fail(e);
     } finally {
@@ -1799,6 +2452,25 @@ function Shelf({ ctx, call }: { ctx: any; call: Call }) {
       }
     },
     [books],
+  );
+  const cite = useCallback<Cite>(
+    (raw) => {
+      try {
+        const u = new URL(raw);
+        const book = books.find((b) => b.id === u.hostname);
+        if (!book) return ["已移出书架的书", "引用的书籍已移出书架"];
+        const chapter = u.pathname.slice(1).split("/")[0];
+        const title =
+          book.chapters.find((c) => c.id === chapter)?.title || chapter;
+        return [
+          selected?.id === book.id ? title : `《${book.title}》${title}`,
+          `《${book.title}》${title} · 点击回到原文`,
+        ];
+      } catch {
+        return ["原文", raw];
+      }
+    },
+    [books, selected],
   );
   async function upload(files: FileList | File[]) {
     try {
@@ -1893,6 +2565,18 @@ function Shelf({ ctx, call }: { ctx: any; call: Call }) {
             }}
             onBack={() => setSelected(null)}
             onUpdate={() => void refresh()}
+            notify={notify}
+          />
+        ) : reviewing ? (
+          <Review
+            call={call}
+            fail={fail}
+            notify={notify}
+            open={openURL}
+            onBack={() => {
+              setReviewing(false);
+              void refresh();
+            }}
           />
         ) : (
           <main className="bs-library">
@@ -1905,6 +2589,12 @@ function Shelf({ ctx, call }: { ctx: any; call: Call }) {
                 <p className="bs-muted">让每一次翻阅，都有所收获。</p>
               </div>
               <div className="bs-actions">
+                <button onClick={() => setReviewing(true)}>
+                  复习
+                  {reviewStats?.due ? (
+                    <span className="bs-badge">{reviewStats.due}</span>
+                  ) : null}
+                </button>
                 <button
                   disabled={job?.running || !!uploading}
                   onClick={() => {
@@ -2113,6 +2803,7 @@ function Shelf({ ctx, call }: { ctx: any; call: Call }) {
               book={selected}
               prompt={ask}
               open={openURL}
+              cite={cite}
               fail={fail}
             />
           </>
